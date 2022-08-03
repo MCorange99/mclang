@@ -1,0 +1,5 @@
+*.o
+*.asm
+output
+__pycache__
+build/

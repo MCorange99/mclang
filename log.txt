@@ -1,0 +1,2949 @@
+commit 18c490a88f7aeaac66446435c2bcc076adee0363
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Nov 11 03:34:17 2021 +0700
+
+    MOVED TO GITLAB: https://gitlab.com/tsoding/porth
+
+commit 5b38fb3ed750a096bf50bd309eb49ec092b54cc4
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 20:31:21 2021 +0700
+
+    The development is moved to GitLab
+
+commit d451ded78c1124481489433f286eb0c429fa1d63
+Merge: 33cfddc fd8046e
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Oct 13 18:11:42 2021 +0700
+
+    Merge pull request #142 from tsoding/clean-up-control-flow
+    
+    Cleanup logging during Control Flow graph generation
+
+commit fd8046ee43312b6f40fba5afd4be5573ba2a9cc6
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 18:06:33 2021 +0700
+
+    Cleanup logging during Control Flow graph generation
+
+commit 33cfddc015a322844a0deacd74a54a0a50b6f3c8
+Merge: 9769559 74d9293
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Oct 13 06:33:06 2021 +0700
+
+    Merge pull request #140 from tsoding/elif
+    
+    Elif
+
+commit 74d9293292bf49e5c19c2b1e8a87a52400fd6b79
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 06:15:55 2021 +0700
+
+    Add TODO about a type checking bug
+
+commit b73045baa23911ddf948d5948cb3b4f46fc36bd9
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 01:41:09 2021 +0700
+
+    Fix test cases
+
+commit 289b5714bc339726b1ce8709d4d4ca65a0d3846b
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 01:36:58 2021 +0700
+
+    Use elif in porth.porth
+
+commit 2eaeecfd35cbd2f3553f67f2c52520fd8395b52b
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 01:34:35 2021 +0700
+
+    Implement type checking for elif chains
+
+commit 8e333a9ad8f53d3d4c9d50065ce452f034ee9196
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 01:15:44 2021 +0700
+
+    Implement support for elif keyword
+
+commit 97695596b923beb752806ec64416b6476bfa621a
+Merge: b4b6ed7 4777728
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Oct 13 00:42:40 2021 +0700
+
+    Merge pull request #138 from tsoding/control-flow
+    
+    Implement -cf flag for the compilation mode
+
+commit 47777287098f83bf4654e6b1bee4e6b3cbcc9cdb
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 00:40:33 2021 +0700
+
+    Fix mypy remarks
+
+commit abe61ec753833ae2b31c8e6799a23804ae8b9ec6
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 13 00:18:17 2021 +0700
+
+    Implement -cf flag for the compilation mode
+    
+    It dumps the Control Flow graph of the compiled program as a dot file
+
+commit b4b6ed7ff3546519eb84db7fba8f0f9f88e1acf8
+Merge: 747f17e 3c540b4
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 12 23:02:09 2021 +0700
+
+    Merge pull request #133 from tsoding/help-stdout
+    
+    Output usage to stdout in case of the `help` subcommand
+
+commit 3c540b43efbc74b1c54ebb209b14398de4498aef
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 21:36:13 2021 +0700
+
+    Output usage to stdout in case of the `help` subcommand
+
+commit 747f17e5898193a857746c038cd1da42a28884d3
+Merge: e4aa446 ebeda8c
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 12 20:31:39 2021 +0700
+
+    Merge pull request #132 from tsoding/cstr
+    
+    Implement C-style string literals
+
+commit ebeda8c5e85d186f38ffda0e89b55763c7fe8436
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 20:29:31 2021 +0700
+
+    Remove TODO about implementing NULL-terminated strings
+
+commit 4116de73c8b3ddd3c40c18455cbd00b2127af20c
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 20:27:51 2021 +0700
+
+    Document C-style Strings
+
+commit 990dbb286a7a49ff82b486c277096d34b34a2cea
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 20:19:42 2021 +0700
+
+    Implement C-style string literals
+
+commit 7d98aec99c786422f47854b9cf555f6d88865639
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 18:59:09 2021 +0700
+
+    Implement cstr-to-pstr
+
+commit 79bb051d356925ed65937c4cc85527224412a071
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 18:58:57 2021 +0700
+
+    Rename streq to cstreq
+
+commit 0a80496a06a7072f5cdcfb1b485a94359101b2be
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 18:55:17 2021 +0700
+
+    Rename strlen -> cstrlen
+
+commit e4aa446f37175371a228804aadc7fb6d53f7cdf6
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 12 02:12:54 2021 +0700
+
+    New lines in assertion messages
+
+commit 07e853afa74e1b2454104d787a59c8d69c185c12
+Merge: dcdfc8a 1f1926a
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 11 16:43:10 2021 +0700
+
+    Merge pull request #127 from tsoding/compile-to-parse
+    
+    Rename compilation phase to parsing phase
+
+commit 1f1926a369efb1fb62e6ab778f77fcd0790aaf65
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 16:41:04 2021 +0700
+
+    Rename compilation phase to parsing phase
+    
+    Because that's what it actually is
+
+commit dcdfc8a247d6a33bb905bef9322fb76afe5acd68
+Merge: 3678ee3 73fb6be
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 11 04:23:33 2021 +0700
+
+    Merge pull request #124 from tsoding/if-do
+    
+    Refactor conditions to have if-do-else-end form
+
+commit 73fb6bec2cc0b7a544853c7f94f1368f24eb2fd1
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:22:12 2021 +0700
+
+    Fix mypy errors
+
+commit eeb79e4215bfe7885b2f429b39317e8eec42f38b
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:15:55 2021 +0700
+
+    Fix porth.porth
+
+commit 02e1cb6e93ca1094181ea9b5d6d36a661f637004
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:13:53 2021 +0700
+
+    Update documentation about `if` construction
+
+commit 28839ffca4ada412c4d05fcd177426cfceb5a0ff
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:12:48 2021 +0700
+
+    Fix Project Euler Problem 04
+
+commit 6e70dc2e45248dbec7af2f099311014de0a05ec6
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:12:00 2021 +0700
+
+    Fix Project Euler Problem 03
+
+commit 4361b4e5327e3c2041c209026ac265825f5c045b
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:11:23 2021 +0700
+
+    Fix Project Euler Problem 01
+
+commit adce6f0d8fbd7cc026e4ff45f8c2ecf1d8eea33f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:10:48 2021 +0700
+
+    Fix Project Euler Problem 07
+
+commit bbc55b3772f17dc5708fe36dc374f1f2ed53775d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:09:56 2021 +0700
+
+    Fix Project Euler Problem 02
+
+commit 895a61de8e0c580dc4882f50698fcdce36bc1f5d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:09:28 2021 +0700
+
+    Fix Project Euler Problem 05
+
+commit 50448c4297628be848af7da77fbf239325018685
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:08:01 2021 +0700
+
+    Fix gol example
+
+commit f4049d25a98d14bf350417e49253c9eb2ce7905b
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:05:37 2021 +0700
+
+    Fix seq example
+
+commit 6bbb230accbc7b8aaccc17f7b44f4f07ebd0f7ce
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:05:03 2021 +0700
+
+    Fix FizzBuzz example
+
+commit 0f8cbf924423255b3484cbf35152ba113b9df6a8
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:04:17 2021 +0700
+
+    Fix rule110 example
+
+commit f52f7eaf95e71458710a200b584e5345ed57a04b
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:03:48 2021 +0700
+
+    Fix name example
+
+commit 93dc59a04dbda93abebf8505df5c49fa447d631d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:03:21 2021 +0700
+
+    Fix rot13 example
+
+commit 461cb57441ecc784523dc720b134d949e7c7f025
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 04:02:45 2021 +0700
+
+    Fix the cat example
+
+commit a942592e282a04bbd153ede8238532da2c6c7dd3
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:58:42 2021 +0700
+
+    Fix else-less-if test case
+
+commit 1675e43384c22c9e972f39d8e066e5b46c9c55d4
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:56:17 2021 +0700
+
+    Fix end-cant-close-error test case
+
+commit c763ea3e8bf007cd082198d28cd8555b2886abcf
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:54:12 2021 +0700
+
+    Fix else-not-inside-if-error test case
+
+commit 47d3a737f4c966c1d2c023f1eb2537b5b98d94cc
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:52:46 2021 +0700
+
+    Fix if-else test case
+
+commit 78c6b9d71815d7e7a274e6a6f1448e99a27b2411
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:52:08 2021 +0700
+
+    Fix if-else-fail test case
+
+commit cb32b98cb95962ed2c34ce6ec43233e51c3146f1
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:50:16 2021 +0700
+
+    Fix macros test case
+
+commit b5f9863f9f69344155c9e198c64bae5a9fe30b77
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:38:34 2021 +0700
+
+    Fix else-less-if-fail test case
+
+commit 56015f09f41092c5cb413e0d112c306cf09628a2
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 03:33:24 2021 +0700
+
+    Refactor conditions to have `if-do-else-end` form
+    
+    This is the preparation for elif construction. Plus it makes it
+    consistent with `while-do-end`.
+
+commit 3678ee3d9097b8c6f40f30740898d44e1b38fdf0
+Merge: e8b41a3 be6df40
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 11 01:10:26 2021 +0700
+
+    Merge pull request #123 from tsoding/op-struct
+    
+    Op struct
+
+commit be6df4086d00f4619ec302e0046687a2a0bb59e6
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 01:07:28 2021 +0700
+
+    Compile porth.porth on CI
+
+commit 1d55d2e5bdcd48bbc30eb8017a469075656a585f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 11 01:05:44 2021 +0700
+
+    Introduce an idiom to simulate structs in Porth
+
+commit e8b41a3002796a68e00f79de61736e12147c2ed4
+Merge: fdd3915 cbb7acc
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Oct 10 23:46:18 2021 +0700
+
+    Merge pull request #121 from tsoding/fizz-buzz
+    
+    FizzBuzz
+
+commit cbb7accd4acb61e70b8a74ab82447cefa8bd1af4
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 23:35:14 2021 +0700
+
+    Test if the ignored test cases at least compile
+
+commit 7d0ed741f0ce803c3c06ce164d912f493f8cd0d6
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 21:48:07 2021 +0700
+
+    Add FizzBuzz example
+
+commit adcd9ffedda21de96592a6f65f55a36e1d67698e
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 06:38:35 2021 +0700
+
+    Remove `then` keyword from the editors support
+
+commit fdd39151f928eeb9c2f918086838805ff7892b5b
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 02:55:48 2021 +0700
+
+    Introduce help subcommand
+
+commit 6035483b71ede60f7460bbda871c0f53431f5273
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 02:48:35 2021 +0700
+
+    Report the name of the command on unknown command error
+
+commit ccfeb65a11e0a962aab7f4ba008c34136e104974
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 01:14:30 2021 +0700
+
+    Implement subcommands for porth.porth
+
+commit 8cec1a79247662eb0346c8046067e74774817472
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 00:51:29 2021 +0700
+
+    Initial implementation of Porth compiler in itself
+
+commit 707f08723a4fa731e4bb368a80017806fbe8d713
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 00:51:02 2021 +0700
+
+    Add `then` and `elif` keywords to the vim plugin
+
+commit ef2fa7feb8f2dc003a2b8f2e28a8d02bb4eec3ad
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 00:50:16 2021 +0700
+
+    Add `then` and `elif` keywords to the Emacs mode
+
+commit d6e522aa057512f0abe5b4c1767be02d570a1990
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 10 00:50:08 2021 +0700
+
+    Add dec64 to std.porth
+
+commit b2c0c46076127ecd84075f8687f3a1c948fb1b57
+Merge: c393d86 42f1afb
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Oct 9 19:01:36 2021 +0700
+
+    Merge pull request #114 from tsoding/forth-style-memory-access
+    
+    Introduce Forth-style memory access intrinsics
+
+commit 42f1afb910960bf71c3b5a29511ef426714ee856
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Oct 9 18:58:28 2021 +0700
+
+    Introduce Forth-style memory access intrinsics
+
+commit c393d864c3cd67ece324599d6964013e8a9d4547
+Merge: d60c17a 89b0f60
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Oct 9 05:16:25 2021 +0700
+
+    Merge pull request #113 from tsoding/more-euler
+    
+    More Project Euler Solutions
+
+commit 89b0f60fff311f43ae7ad9efdf609d13e31babd1
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Oct 9 05:13:29 2021 +0700
+
+    Add solution for Project Euler Problem 07
+
+commit 17baf6691b99d01c3627a6b5f2f4adecef1f374a
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Oct 9 03:58:18 2021 +0700
+
+    Add solution for Project Euler Problem 06
+
+commit d60c17ac82d0135807dcbe92db38dc3a3f174a0a
+Merge: 5c442cc 0e0eaa7
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Oct 9 00:04:06 2021 +0700
+
+    Merge pull request #112 from tsoding/cooler-gol
+    
+    Cooler GoL
+
+commit 0e0eaa7974855a29ac6786111449384830fb0468
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Oct 9 00:01:59 2021 +0700
+
+    Implement SYS_clock_nanosleep for simulation mode
+
+commit b3616a154dd85f75ddfd674c06f845995831ef98
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 23:48:54 2021 +0700
+
+    Make GoL example iterate indefinitely
+
+commit 9f64e79dc7db70ef3306b5417bd44437d1e78a0d
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 23:48:26 2021 +0700
+
+    Remove gol.txt to make test.py ignore the example
+
+commit 0dcf77db08a9f94c8f042085609157b726d227be
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 23:01:50 2021 +0700
+
+    Remove trailing whitespaces
+
+commit 2562314da22980bf2c9542cd4353afe791a4d37a
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 22:01:30 2021 +0700
+
+    Introduce `rot` intrinsic
+
+commit 2152dd4023634ea15bd6cb3d7637cd085913b8a8
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 21:52:08 2021 +0700
+
+    Add wrapper for clock_nanosleep to std.porth
+
+commit b5790206f4afabf857f949313b360fa84f2ff6c6
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 21:51:47 2021 +0700
+
+    Forgot that Porth is already statically typed
+
+commit 5c442ccd0c4e56660add2ef644245652fb09ae87
+Merge: 5919c68 f14a1ba
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 8 18:31:46 2021 +0700
+
+    Merge pull request #111 from tsoding/gol
+    
+    Simple Game of Life implementation
+
+commit f14a1bacebe111d3cb504d02067c28acd80105de
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 18:28:16 2021 +0700
+
+    Simple Game of Life implementation
+
+commit 5919c68e7bee0423ee674222ae24bfca930ca995
+Merge: 0b8db24 d3c2c65
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 8 03:12:26 2021 +0700
+
+    Merge pull request #110 from tsoding/here
+    
+    Implement `here` intrinsic
+
+commit d3c2c65ed818a1e2a2a26643abafac1c8104745c
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 03:10:54 2021 +0700
+
+    Use puts in the README examples
+
+commit bdaecb9bf4ba886976b1fd301190faa2b6d01123
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 03:08:00 2021 +0700
+
+    Use puts and eputs in all of the examples
+
+commit e1151e81d53a4da3615b572af8637f15e8604fdf
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 03:07:35 2021 +0700
+
+    Add eputs to std.porth
+
+commit 586f560227ada39afbbd29949a01963115465704
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 03:05:03 2021 +0700
+
+    Use `puts` in all of the test cases
+
+commit 28e9e5a9f6fd34d211c2389804e367810f4175a1
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 03:01:27 2021 +0700
+
+    Move puts to std.porth
+
+commit 2ad2af28f065d895fc14bd2fb74b418667c2cd55
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 8 00:43:38 2021 +0700
+
+    Implement `here` intrinsic
+
+commit 0b8db240f2e0372b402ed52ceb32a98e52da4e73
+Merge: 572ec20 13b7437
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Oct 7 22:30:01 2021 +0700
+
+    Merge pull request #109 from tsoding/logic-operations
+    
+    Logic operations
+
+commit 13b7437fd83ac636f9f92535c0e995794115ec10
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 22:27:44 2021 +0700
+
+    Fix compilation of Project Euler solutions
+
+commit 3368c981d131ea640e40b25786f2440db8a79c09
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 22:27:09 2021 +0700
+
+    Fix compilation of examples
+
+commit ddcb21bc83de0f35d1a48bd01d7c7afd128b7c6b
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 22:25:51 2021 +0700
+
+    Implement `not` intrinsic
+
+commit 6912747dd42714d73484db484a410fc8257afeee
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 21:51:27 2021 +0700
+
+    Rename bor -> or, band -> and
+    
+    Whether it's a bitwise one or a logic one is decided by the inferred
+    type. Basically they are overloaded.
+
+commit 572ec209252708718c4692b04b89831099015af5
+Merge: 208cf73 e4e4f5d
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Oct 7 21:30:30 2021 +0700
+
+    Merge pull request #108 from tsoding/fib
+    
+    Add fib example
+
+commit e4e4f5d9f76a6667108420ce1a97af943041207f
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 21:27:10 2021 +0700
+
+    Cleanup magic constants
+
+commit 24cf5fa19f4c1af2f8f25fc14834ae52c388c6fa
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 21:26:32 2021 +0700
+
+    Add fib example
+
+commit 9f493222f66e1d389c48f7bdda75b468f933657c
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Oct 7 21:26:11 2021 +0700
+
+    Ignore test case when *.txt files is missing
+
+commit 208cf731a87124a0d70dd0a9c74c75ed2984e8b6
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 6 04:13:23 2021 +0700
+
+    Remove TODO about profiler mode
+    
+    Maybe later when it's actually needed
+
+commit acf4d16118802cd74bb0df868493da8225404d36
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Oct 6 04:08:23 2021 +0700
+
+    Remove TODO about several test cases per single program
+    
+    If you need to have several case, just create several programs. The
+    only time it is need is when we are testing stuff form examples/*. But
+    examples are not meant to be test cases. They showcase the language.
+
+commit 73c9e1d9c0471142e2ba3397e34be8bff6be3053
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 17:39:24 2021 +0700
+
+    Remove TODO about type checking operations that never return
+    
+    I don't think it's relevant anymore
+
+commit 35822190ef08a42378bcce241bb4ff0837f05115
+Merge: 5f9af58 c484f60
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 5 17:27:25 2021 +0700
+
+    Merge pull request #104 from tsoding/seq
+    
+    Proper seq implementation
+
+commit c484f60a6880128f5cbfd6c59601fb5de00ae3f0
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 17:25:45 2021 +0700
+
+    Proper seq implementation
+
+commit 5f9af582f969d03791a5bc1c8ba6130b7339e804
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 07:03:20 2021 +0700
+
+    Make examples in README compilable
+
+commit 92ca2961aee231c24e7b82b5c8524c80c8c78190
+Merge: 3e3b70b 6a88426
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 5 06:41:12 2021 +0700
+
+    Merge pull request #103 from tsoding/rot13
+    
+    Implement rot13 example
+
+commit 6a88426b246e154c2abc710d81e21a80ad53afa9
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 06:39:38 2021 +0700
+
+    Implement rot13 example
+
+commit 3e3b70b0b07276b4f872238c26f3f40172289b07
+Merge: 40f5879 5d7b6eb
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 5 06:05:28 2021 +0700
+
+    Merge pull request #102 from tsoding/compiler-diagnostic-with-expansion-stack
+    
+    Separate compiler diagnostic with expansion stack
+
+commit 5d7b6eb2765fd97787a0655b001e124c9177d0e2
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 05:59:41 2021 +0700
+
+    Separate compiler diagnostic with expansion stack
+
+commit 40f58794d435a20558c466085dec233f466b4d0e
+Merge: c58f39f 29aedc5
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 5 05:53:45 2021 +0700
+
+    Merge pull request #101 from tsoding/while-do-type-check-bug
+    
+    Fix while-do type checking limitation
+
+commit 29aedc5b0ebbaf365dfc93de909b3f4e8547fdbd
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 05:52:06 2021 +0700
+
+    Remove control-flow test
+    
+    It's redundant
+
+commit 20fd31eee591dbe2a9e17a5614f418a8b5d34916
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 05:51:29 2021 +0700
+
+    Add type checking tests for while-loop
+
+commit f7de8475a42528f9af067d2e4e152de7cdf14764
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 05:48:15 2021 +0700
+
+    Add type checking tests for conditions
+
+commit 4bd68c2561a30bf5fa7c2839358cb4fea9548222
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 05:02:11 2021 +0700
+
+    Fix while-do type checking limitation
+
+commit c58f39f5c3d9ca3bba2b439d907ceb37332905c8
+Merge: 3c3fa22 683708e
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Oct 5 02:24:00 2021 +0700
+
+    Merge pull request #100 from tsoding/cat
+    
+    Implement cat utility
+
+commit 683708ec8baa24967b066ad417228307d37aa1d7
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 02:21:23 2021 +0700
+
+    Try to fix mypy remarks
+
+commit 26fe1c9412ad73e5aed8a9775846aeac54909ef0
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 01:55:20 2021 +0700
+
+    Try to fix the build
+
+commit 7e8e0a22c1f778b9327e0e934bd6010cea3bd1ee
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Oct 5 01:45:36 2021 +0700
+
+    Implement cat utility
+
+commit 3c3fa2235e32b178384196b0fb7324b2963f0f92
+Merge: 3106a14 c0bfe05
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 4 14:12:58 2021 +0700
+
+    Merge pull request #97 from tsoding/nth-argv
+    
+    Introduce nth_argv macro
+
+commit c0bfe05b58e3373d3d220bc550210b0fdd3db167
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 14:08:56 2021 +0700
+
+    Introduce nth_argv macro
+
+commit 3106a14bc2d89f12780dc04747ae00f41e1c17b5
+Merge: 0cc9bd9 ffc6c8c
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 4 02:50:54 2021 +0700
+
+    Merge pull request #96 from niyrme/patch-1
+    
+    Fix CI running twice on PR
+
+commit ffc6c8c3147ed1ae8e5cd6cb682d1548666c76bd
+Author: niyrme <53240445+niyrme@users.noreply.github.com>
+Date:   Sun Oct 3 20:17:36 2021 +0200
+
+    Fix CI running twice on PR
+
+commit 0cc9bd9f5943204f2c0af878726c2b64576a713c
+Merge: 80c3be9 d0cfc2e
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Oct 4 01:14:51 2021 +0700
+
+    Merge pull request #95 from tsoding/type-check-control-flow
+    
+    Type check control flow
+
+commit d0cfc2e6530510d7a920d24a2cfa5697ee9cb84e
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 01:12:53 2021 +0700
+
+    Make all the euler solution type check
+
+commit e4b13f447f5ab2eddceabb0c2bfc30b29e1ed852
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 01:07:58 2021 +0700
+
+    Introduce -unsafe flag that disable type checking
+
+commit 9bc9591485168a97df56862165325a053e0a7e1d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 01:05:25 2021 +0700
+
+    Make all the examples type checked
+
+commit 8c0f5541aca00a08e62d3d36cf429d0c733fa6b5
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 00:49:45 2021 +0700
+
+    Make all of the test cases type check
+
+commit 1b01538736b1b525e566a793e533d664c35b529a
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 00:31:11 2021 +0700
+
+    Implement type checking for while-do loops
+
+commit 13a46f7f615e78b381aa664f5bcf403e05d43e3a
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 00:17:35 2021 +0700
+
+    Implement type checking for if with else
+
+commit caf774b671e6d3bc92c5dda55381ba4a14baae7c
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Oct 4 00:05:55 2021 +0700
+
+    Implement type checking for else-less if
+
+commit 80c3be9df4b2ea84d9318057b9ab74147cb0efcc
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 19:56:28 2021 +0700
+
+    Typo
+
+commit 038327e1cdccd3a40440559e2aead9f93cdf57bf
+Merge: 99993bb 8269e89
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Oct 3 19:40:50 2021 +0700
+
+    Merge pull request #93 from tsoding/expansion-stack
+    
+    Print expansion stack during compilation errors
+
+commit 8269e89370178f171ab0d8a63216472f47f23984
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 19:38:25 2021 +0700
+
+    Print expansion stack during compilation errors
+
+commit 99993bb2395d1100110bd5a5729849bf363fad03
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 19:01:36 2021 +0700
+
+    Make the warning more noticable (hopefully)
+
+commit 94df323db96c7f1ca1f2d92b8ab915307bee50b1
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 18:56:15 2021 +0700
+
+    Add CONTRIBUTING.md
+
+commit 61096b9f668bbf2c04deb4f35ae663d63183bb43
+Merge: 96e8aa7 3ca1ab9
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Oct 3 18:54:02 2021 +0700
+
+    Merge pull request #92 from tsoding/op-loc-token
+    
+    Replace Loc in Op with Token
+
+commit 3ca1ab916d4f0f14967f54bd7b0c0a585aad2217
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 18:52:48 2021 +0700
+
+    Replace Loc in Op with Token
+
+commit 96e8aa7695d500888a3c6156f1749c27781231a5
+Merge: 6240fce 6aaf02a
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Oct 3 18:38:06 2021 +0700
+
+    Merge pull request #91 from tsoding/compiler-diagnostic-functions
+    
+    Introduce compiler diagnostic functions
+
+commit 6aaf02a07ae7f542af0675095d1563c08a6a1d87
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Oct 3 18:36:41 2021 +0700
+
+    Introduce compiler diagnostic functions
+
+commit 6240fce416f0d3a7d826323ab4856a9e92898175
+Merge: fa081eb 9be4b6c
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 21:15:18 2021 +0700
+
+    Merge pull request #85 from tsoding/type-checking
+    
+    Type check everything except control flow
+
+commit 9be4b6c4ed0543b299add137d041bc907aa2af3e
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 21:10:45 2021 +0700
+
+    Make memory.porth test case type check
+
+commit 91624220a1996cd47e5104c65c43546fbba7d580
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 21:02:14 2021 +0700
+
+    Make bitwise.porth test case type check
+
+commit 7652fc291e02351174e687ff1bbab6aeeaad8fee
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 20:59:06 2021 +0700
+
+    Make comparison.porth test case type check
+
+commit fa081eb5d1dcdf500bf568966d856d203b9f9428
+Merge: a98e0ef 277ed40
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 20:49:02 2021 +0700
+
+    Merge pull request #84 from tsoding/arithmetics-type-check
+    
+    Make arithmetics test case type check
+
+commit 277ed40b91ab5df7ec1d269c9b07c28a6e24f4a3
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 20:21:52 2021 +0700
+
+    Make arithmetics test case type check
+
+commit a98e0ef5cf91e22d7f5903407e805033019519f5
+Merge: fb214ae 3ce5a33
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 19:17:56 2021 +0700
+
+    Merge pull request #83 from tsoding/type-check-stack
+    
+    Make stack.porth type check
+
+commit 3ce5a33251cd11c03e70539afe528a1ae28af3e7
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 19:16:16 2021 +0700
+
+    Make stack.porth type check
+
+commit fb214ae60a3551073fb0f05de9c0b0f1cd018e05
+Merge: 6798868 ee86ae6
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 17:15:56 2021 +0700
+
+    Merge pull request #82 from tsoding/type-checking
+    
+    Advance Type Checking Implementation
+
+commit ee86ae6279cae358525cdb4de6838e8152926edc
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 17:14:11 2021 +0700
+
+    Fix human() function
+
+commit 093710d0afc4795f31a7d6f5cbc57001d60f7596
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 16:44:12 2021 +0700
+
+    Implement type checking for argc and argv intrinsics
+
+commit 09bdf2e6f576991d3e43e1e6a288a823418815ce
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 16:40:54 2021 +0700
+
+    Implement type checking for the rest of the syscall intrinsics
+
+commit 679bacf98ca3d6f46ca5d9684ea25c54787906d2
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 16:40:05 2021 +0700
+
+    Implement type checking for mem intrinsic
+
+commit 093b1bc00f65d1aee5a246b600e9f9db7e5315a8
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 16:31:17 2021 +0700
+
+    Introduce not_enough_arguments_for_intrinsic() helper
+
+commit 6798868a58da80ecf84df61b0bab6eda4c155a14
+Merge: bb4df2a b4d0188
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 04:58:40 2021 +0700
+
+    Merge pull request #79 from tsoding/reverse-linked-list
+    
+    Add Reverse Linked List example
+
+commit b4d0188036a218a06e5f93b9560c29eb161ff989
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 04:56:34 2021 +0700
+
+    Add Reverse Linked List example
+
+commit bb4df2a9ebb324b36958be683f06cdeb9efb493b
+Merge: 6e33e8e 3a3f48f
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Oct 1 02:53:45 2021 +0700
+
+    Merge pull request #77 from tsoding/static-type
+    
+    Introduce type checking phase
+
+commit 3a3f48ff2803d3e6bcc28dd67f69225a5a2fd808
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 02:50:33 2021 +0700
+
+    Fix mem intrinsic bug
+
+commit 4f0e5dff3301a1439974021d211c1d9c62879df5
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 02:45:34 2021 +0700
+
+    Fix mypy remarks
+
+commit 167d82348c8a6506b6b0671c826983fab72bab42
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 02:38:50 2021 +0700
+
+    Introduce type checking phase
+
+commit 93d32f09249faf5244d3853ace0ce212e621232d
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Oct 1 00:24:35 2021 +0700
+
+    Implement argc and argv intrinsics
+
+commit f025995a7d2aa35a3aba1f72471c3280af0f5360
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 23:51:40 2021 +0700
+
+    Introduce argc and argv intrinsics
+    
+    But don't implement them yet
+
+commit 6e33e8e8978b327cd96941bce2436b4617675394
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 11:30:50 2021 +0700
+
+    Fix error messages in test.py
+
+commit 0ce961dc6120e488a12c59b086cb3e6e12c433a2
+Merge: e709e55 9cdb461
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 30 10:46:19 2021 +0700
+
+    Merge pull request #70 from scgilardi/simplify-strlen
+    
+    simplify strlen
+
+commit 9cdb461b823be664f63f5d0ea4a177b7de252f6d
+Author: Stephen C. Gilardi <scgilardi@gmail.com>
+Date:   Wed Sep 29 14:03:29 2021 +0000
+
+    simplify strlen
+    
+    no need for a separate counter, we can use "memory index" arithmetic
+
+commit e709e5549f869a41e0c65ec951361e3ba0cfe2d0
+Merge: f9b9a1e 5fa4c97
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 30 04:34:56 2021 +0700
+
+    Merge pull request #71 from tsoding/record-stdin
+    
+    Implement recording of stdin
+
+commit 5fa4c9789f19c6f857903e296756f947391301da
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 04:32:39 2021 +0700
+
+    Update CI scripts
+
+commit 650158bd6c237cac286967c6f363bae8fe4ff579
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 04:29:57 2021 +0700
+
+    Update Testing documentation
+
+commit 058c98b63fd8ab5f529390d09b0ff3beacd6e137
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 04:20:46 2021 +0700
+
+    Restructure the test.py subcommand system
+
+commit ae83e6811e347768d90b5cf8bba60320ef318be5
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 01:40:13 2021 +0700
+
+    Add name example
+
+commit 1efdd47d2852e1e07c421346e657c4800f22a5cb
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 30 01:38:55 2021 +0700
+
+    Implement recording of stdin
+
+commit f9b9a1e33ca44656332aa91de0edf1b5c02cf0fc
+Merge: 3722a2e d99332a
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 29 18:55:55 2021 +0700
+
+    Merge pull request #68 from tsoding/record-input
+    
+    Implement argv recording
+
+commit d99332a1dd211c2d96fad135c53bf7685d9634de
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 18:54:22 2021 +0700
+
+    Fix the build
+
+commit 74c9d69a8cbc53bfa16cafaad147046ec57af8e0
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 18:40:04 2021 +0700
+
+    Implement argv recording
+
+commit 3722a2e0985b31b8481e8e49c6f04fa1a24b862e
+Merge: cfd9c23 31b4f9d
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 29 17:36:13 2021 +0700
+
+    Merge pull request #67 from tsoding/test-case-input
+    
+    Add support for input in the test case format
+
+commit 31b4f9d2a04387f2969bb617f45e8d318c1c55e5
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 17:32:30 2021 +0700
+
+    The test case input is not provided during the test
+
+commit 0462fae9cd6481f45c142d8384c49a1edaa2888d
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 17:31:51 2021 +0700
+
+    There is no way to record the test case input
+
+commit c2ee8dec849ee89b76bff78659c924a237be8b54
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 17:30:45 2021 +0700
+
+    Add support for input in the test case format
+
+commit cfd9c23c955f190e8ccfb7d607f695a4dac52d00
+Merge: f3f3793 3773d82
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 29 16:22:42 2021 +0700
+
+    Merge pull request #66 from tsoding/simulate-read-syscall
+    
+    Implement read syscall in simulation mode
+
+commit 3773d821e6a56edad33afad6b70d3d4979c49935
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 29 16:17:18 2021 +0700
+
+    Implement read syscall in simulation mode
+
+commit f3f3793972a41fd7d4477a49c80f06f79978c567
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 14:18:01 2021 +0700
+
+    Macros from command line is unnecessary right now
+
+commit f50b51ff1e2afcca0efc5f1dcb1bcb0a1cf8a8f1
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 14:17:13 2021 +0700
+
+    Typing for load/store has been demonstrate to be unnecessary
+    
+    We gonna implement a proper type system after self-hosting
+
+commit 94116fa2453b4f031632434e4c243e5e99bcafb0
+Merge: 502ea23 cd52faf
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 28 14:08:48 2021 +0700
+
+    Merge pull request #61 from tsoding/exit-syscall
+    
+    Exit syscall
+
+commit cd52fafd7aef966a9bf23e9765c8c9b9906cda83
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 14:05:03 2021 +0700
+
+    Remove finished TODOs
+
+commit 96ea7b967f97abc541ee6753d4ca2f6f22c316b4
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 14:04:42 2021 +0700
+
+    Implement exit syscall for simulate_little_endian_linux()
+
+commit 502ea2306edc26ce745d24e0a05a698ff9bc14f4
+Merge: c4760be 7cbc046
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 28 01:11:47 2021 +0700
+
+    Merge pull request #60 from tsoding/argv
+    
+    Implement command line args for the simulation mode
+
+commit 7cbc0467a4325ca5ff4f570435278f0db16aceb8
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 01:07:57 2021 +0700
+
+    Implement command line args for the simulation mode
+
+commit c4760bee9ea24f05bf356f7b48e45a4976e9782d
+Merge: b2b5f4a 119ca80
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 28 00:08:22 2021 +0700
+
+    Merge pull request #57 from tsoding/macro-expansion-limit
+    
+    Macro expansion limit
+
+commit 119ca8057d987ffd5314818280bf47ac938f8732
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 28 00:05:43 2021 +0700
+
+    Make the expansion limit customizable
+
+commit 1ed64ea494d3d91fbb0a5ef8a86f528ae18abd25
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 23:46:24 2021 +0700
+
+    Implement macro expansion limit mechanism
+
+commit b2b5f4a05006a802f5b97ce0d9963c756b11a367
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 22:26:50 2021 +0700
+
+    TODO about profiler mode
+
+commit 5352293aba59aa0b8a445a6bc74e089f140f6b73
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 19:50:17 2021 +0700
+
+    Add Porth Contributors to LICENSE
+
+commit c901d91194b54aff12b3bd90e1b38975dcb46e6c
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:27:48 2021 +0700
+
+    Add performance warning to ./euler/problem04.porth
+
+commit e4edcd1b0a67ab437f8acf70e2ae7b32264ea3d7
+Merge: e8254c6 bc7b411
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 27 18:25:45 2021 +0700
+
+    Merge pull request #55 from tsoding/pypy
+    
+    Use pypy on CI
+
+commit bc7b411be0c6ad9fced1f89e4ae17e767688ce69
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:24:23 2021 +0700
+
+    Mention PyPy in documentation for Simulation Mode
+
+commit d99b324b63f27d72a72995f67e419b7bb429a7cc
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:21:27 2021 +0700
+
+    Update Project Euler README
+
+commit b5dee5a5f048bf36c8148ee45070639d75a7c38a
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:15:31 2021 +0700
+
+    Try to cache pypy
+
+commit 5392f4740fa024e8b268d33fb8954b2248b48dd0
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:09:26 2021 +0700
+
+    Run euler solutions on CI with pypy
+
+commit 9f3cd15b33461134bc98a2069cbd9066c7b70f65
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:07:43 2021 +0700
+
+    Install pypy from the official website
+
+commit bd96bc25e55a749fa8eacecc7489140adb3094d8
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:03:46 2021 +0700
+
+    Print the versions of pythons
+
+commit fc4fb2670c927194ab6f56cf0a893c52033ce3e5
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 18:01:37 2021 +0700
+
+    Run tests with pypy3
+
+commit dbc1d5ec972ccf8b37f8bc252aa5129e1c166885
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:58:55 2021 +0700
+
+    Run porth.py with the same Python as test.py
+
+commit e8254c6091357f28795d052d77a921319a8d284b
+Merge: edd25e7 5796634
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 27 17:52:26 2021 +0700
+
+    Merge pull request #54 from zrthxn/ld64
+    
+    implement intrinsic load and store 64 bit values
+
+commit 5b337008cfcd5f5c78c91cd814b25bde5d70bf44
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:51:51 2021 +0700
+
+    Try to install pypy3 from ubuntu repos
+
+commit b2883a8836dbcc713448fd6889c838cb7513c594
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:49:03 2021 +0700
+
+    Upgrade ubuntu to 20.04
+
+commit 57966344f23a66b271c6d9cc6629881f32e8fad3
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 16:17:56 2021 +0530
+
+    Another refactor for types
+    
+    Another refactor for types
+
+commit 2cc7ea33e02da7950ebf59170c722f2f0e61801e
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:46:20 2021 +0700
+
+    Try to use Python 3 explicitly
+
+commit 0997cf3b3fda89b165edf3efb5dda04dbf5d0930
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:44:50 2021 +0700
+
+    Get rid of actions/setup-python
+
+commit 28b14ffbe37e8c5255bc5fa0a1a0a0c798235037
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:34:39 2021 +0700
+
+    Some internet page said this my help but I doubt it
+
+commit d22b5199c081beeaf653366fb9efd3e35308213a
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:34:24 2021 +0700
+
+    Revert "Bump the version of pypy hoping it will change something"
+    
+    This reverts commit da2fd60f747ce13359aa3f3ba7f90cd587e26ccb.
+
+commit da2fd60f747ce13359aa3f3ba7f90cd587e26ccb
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:21:58 2021 +0700
+
+    Bump the version of pypy hoping it will change something
+
+commit b0c04894ff10db23db24c07f3189467a3ecea2a8
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 15:47:15 2021 +0530
+
+    refactor
+
+commit 9073798ff68fc2476125b7aad9ae65242de898b9
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 17:14:59 2021 +0700
+
+    Use pypy on CI
+
+commit 2cf419b936967f1570a1298a0668b14afd941945
+Merge: 9572cd8 edd25e7
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 15:42:50 2021 +0530
+
+    Merge branch 'master' of github.com:tsoding/porth into ld64
+
+commit 9572cd86b27664230762530806896971e4ce4093
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 15:35:50 2021 +0530
+
+    fix: simulation of 64 bit values
+
+commit edd25e76a56608d07bbf24eaadca6cb1528a70fb
+Merge: 6502239 29a2960
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 27 16:52:35 2021 +0700
+
+    Merge pull request #52 from kolumb/binary-tests
+    
+    Implement binary format for test outputs and errors
+
+commit 29a29608c88db624c100c74a159e233a7ef7cf09
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 16:47:42 2021 +0700
+
+    Type check test.py on CI as well
+
+commit 6d8701e139884c8ec794ed73d618fc33ef4adc1d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 16:45:46 2021 +0700
+
+    Update the test case format documentation
+
+commit 6bcadfebcaa7280698eb83144f74226f1d91cc06
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 16:42:10 2021 +0700
+
+    Remove experimental garbage
+
+commit 2cd52f575cfccceef197ccb352c9647fc4e4b52f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 27 16:34:02 2021 +0700
+
+    Try out a new simple text format
+
+commit b1447f615dfe0db09327fcc646e53fe9dac2b31a
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:28:03 2021 +0530
+
+    fix: no need for mask with store64 intrinsic
+
+commit 0c3ab923b1b845ecf6c1c971c1d129d2a9aaeb19
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:26:47 2021 +0530
+
+    simple tests for `,64` and `.64`
+
+commit 4df5602ba0392f861bdf7587da8c56aa1f1c66e3
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:25:51 2021 +0530
+
+    readme: instrinsic load and store 64 documentation
+
+commit 6c2c0a3e5c29c8e0d017694b6e68b6409120e00f
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:19:03 2021 +0530
+
+    fix: replace macros with intrinsics
+
+commit 2a3632034589eb3080855a4de0c1ee6d88bfd6c3
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:18:42 2021 +0530
+
+    fix: typo!!
+
+commit 2043de3b44c455602d367978f95f22d525d3ddf4
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 13:08:15 2021 +0530
+
+    fix: removed load64 store64 macros, updated inc64
+
+commit ab30f00a46da5cf68e5092f9676c59e4f28f8ccc
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 12:45:38 2021 +0530
+
+    Fix: missed `len(Intrinsic)` in simulate function
+
+commit 402cfd6053354f974ec2dbc237962d38cc29c2ba
+Author: Alisamar Husain <zrthxn@gmail.com>
+Date:   Mon Sep 27 12:30:08 2021 +0530
+
+    Temp implement intrinsic load and store 64 bit values
+
+commit 670d084148e44443211060aab6b77fc6994b72c5
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:43:27 2021 +0300
+
+    Document binary format in README
+
+commit d6554d4e2227129ba63b75415fc45d8a5e96b007
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:43:00 2021 +0300
+
+    Update format for euler tests output
+
+commit 8dd1d452b12c0fa23844577a2d0ef24008e5280e
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:33:54 2021 +0300
+
+    Update tests output files for examples
+
+commit 5766d052c24c47ed9144013efd3018da4ce93c11
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:29:02 2021 +0300
+
+    Add tests for errors
+
+commit cad2a61bef42331c473532130d816532d94e2148
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:28:29 2021 +0300
+
+    Update files with expected output to binary format
+
+commit 7098d1a8e8346c86147a239ed66e74cbe97a60bd
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:24:10 2021 +0300
+
+    Implement custom binary format for testing output
+
+commit 35b882b632fdb2272911fd5fd44fc43fb897e228
+Author: Danil Kolumbet <kolumbetko@gmail.com>
+Date:   Sun Sep 26 23:18:10 2021 +0300
+
+    Fix compiler errors output
+
+commit 6502239985369433af8adf77276d89dffa4e8ecc
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 18:17:30 2021 +0700
+
+    Formatting
+
+commit 5d620d25f4b8e194642d9e6c2d1a9532e112c5ae
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 18:16:45 2021 +0700
+
+    Add more details on "test compiler errors" TODO
+
+commit 83835b5c5319e043e3f2dc644b654400c5e1f15e
+Merge: 48db695 f6d3a46
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 26 04:30:36 2021 +0700
+
+    Merge pull request #49 from drocha87/47
+    
+    set basedir to current working directory if it is empty
+
+commit 48db6959010314e498540f619d7a1148bcceeaba
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 04:29:30 2021 +0700
+
+    Typo
+
+commit 5458aee5d518169463c6c1afa909b3e0315ec4dd
+Merge: c15888a 5b69c5d
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 26 04:28:42 2021 +0700
+
+    Merge pull request #48 from tsoding/euler
+    
+    Project Euler Problems
+
+commit 5b69c5d1e769338815a8d232c043cfb23d10b374
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 04:25:18 2021 +0700
+
+    Disclaimer about Project Euler solutions
+
+commit f6d3a4673651264a69b86959eac3816a2d52c900
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Sat Sep 25 18:23:20 2021 -0300
+
+    set basedir to current working directory if it is empty
+    
+    This commit fixes #47
+
+commit b7a274cf27565cfb9bad60af85efe85a0470e8ed
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 04:23:17 2021 +0700
+
+    Additional work
+
+commit 8618ad8a0ff31394865bfc3934c918398eb948da
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 04:21:17 2021 +0700
+
+    Add README for euler problems
+
+commit 859a65b7b8c0074d97b3539ac7db0ddbd52e9866
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 01:32:54 2021 +0700
+
+    Add euler test cases
+
+commit 6d4ab5b49d267e42d052a2d393ce0e99873de285
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 26 01:32:17 2021 +0700
+
+    Allow recording test cases in compilation mode
+
+commit c15888ae3d37f85f5f0ff8734f58c1e64ba77d30
+Merge: a3bbabc ce50b9b
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Sep 25 05:34:40 2021 +0700
+
+    Merge pull request #45 from ap29600/master2
+    
+    Add support for nested blocks in macro definitions
+
+commit ce50b9b1a80233ce28d8be47a9926f7c58e3191e
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 25 05:30:52 2021 +0700
+
+    Add tests for blocks inside of macros
+
+commit a3bbabc5ae8611a16aab41f82025ff160143f3bc
+Merge: d7ecaa2 2b94e13
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Sep 25 03:10:33 2021 +0700
+
+    Merge pull request #43 from drocha87/multline_string
+    
+    add support to multi line string
+
+commit 35cb631de8bda9a9c50192e205a0b1a2bef488ba
+Author: Andrea Piseri <andrea.piseri@gmail.com>
+Date:   Fri Sep 24 22:09:31 2021 +0200
+
+    Add support for nested blocks in macro definitions
+
+commit 2b94e133296996079104001d0b121dbdef96fc6a
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 13:51:53 2021 -0300
+
+    do not initialize `col_end` with `None`
+
+commit 97c0bc431eb8d8f04aca55c89adf98e517b60cfa
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 13:09:44 2021 -0300
+
+    add support to multi line string
+    
+    This commit changed how the lexer behaves. Now in the first step of the
+    lexer `lex_file` we just consumes the lines of the file and send it
+    directly to `lex_lines`. I introduced a new main loop inside the
+    `lex_lines` so we can walk line by line. I checked that the error
+    reporting seems to be working fine.
+
+commit d7ecaa221a791616e2c76989feaf65a9cdf42e0c
+Merge: d7b9fa4 a42fde8
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 22:25:24 2021 +0700
+
+    Merge pull request #41 from drocha87/string_literal
+    
+    add support to double quotes inside string literal
+
+commit a42fde8af5f09fd5f2b56bd0473960e294aefada
+Merge: d845d5b d7b9fa4
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 11:09:17 2021 -0300
+
+    Merge remote-tracking branch 'origin/master' into string_literal
+
+commit d7b9fa400ff3dfb58fb7c6090bce9ffaa51d2615
+Merge: c53e18e 0ba18cf
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 19:31:28 2021 +0700
+
+    Merge pull request #42 from tsoding/syscall-wrappers
+    
+    Wrappers for common syscalls
+
+commit 0ba18cf4d5f07e185fb8492a3734b1edf7fbb336
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 19:29:35 2021 +0700
+
+    Fix the tests
+
+commit 181a576ac4b7e0ac9ff9ed9aa247e24dfbd57fa9
+Merge: 99aeedb c53e18e
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 19:28:43 2021 +0700
+
+    Merge branch 'master' into syscall-wrappers
+
+commit 99aeedb8a247cc5f8f2c69c2842d4006719092e6
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 19:27:05 2021 +0700
+
+    Update README
+
+commit c53e18e349af40854557dafb348886dc0c648705
+Merge: c5b5fc8 5f0afc7
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 19:22:37 2021 +0700
+
+    Merge pull request #40 from drocha87/comment
+    
+    add support to `//` inside string literals
+
+commit 1488de4e387363982472408bf615ea6d5ebb6f21
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 18:56:35 2021 +0700
+
+    Wrappers for common syscalls
+
+commit d845d5b67c3b016505197827f66ad6945a95ee3c
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 08:49:06 2021 -0300
+
+    add support to double quotes inside string literal
+
+commit 5f0afc7ad4b8283bc97ca25643b71e920cd30d66
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 08:27:04 2021 -0300
+
+    avoid some checks for `text_of_token.startswith("//")`
+    
+    If we know for sure that the `text_of_token` is a number or it is in
+    `KEYWORD_NAMES` we don't need to check if `text_of_token` is a comment.
+
+commit a34df4726130bbcde66998dedeb7a45c592a6119
+Author: Diego Rocha <dlmrocha87@gmail.com>
+Date:   Fri Sep 24 08:15:12 2021 -0300
+
+    add support to `//` inside string literals
+
+commit c5b5fc8e1483f20bc9437aaa085d93192abaf536
+Merge: c520c00 75d8d17
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 17:25:56 2021 +0700
+
+    Merge pull request #39 from tsoding/silent-com
+    
+    Implement -s flag for the compilation mode
+
+commit 75d8d1752e1bc24b08ec70b18974864d48a24a93
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 17:24:33 2021 +0700
+
+    Implement -s flag for the compilation mode
+
+commit c520c00eb996650bc88661ee45df6347d2e0a3b7
+Merge: 7693a39 885c2d8
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 16:16:20 2021 +0700
+
+    Merge pull request #38 from tsoding/remove-jmp
+    
+    Remove jmp
+
+commit 885c2d86db1c213c9e28ffacb14ba9997baa479f
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 16:15:18 2021 +0700
+
+    Merge together Op.value and Op.jmp
+
+commit 9c0c802de59dfb13f0912e4ca370e3814738136d
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 16:05:39 2021 +0700
+
+    Rename Op.value -> Op.operand
+
+commit 7693a3929dab1f45927339e7543aa34b3404c6d1
+Merge: c95805e 1d4ab5a
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 24 16:02:44 2021 +0700
+
+    Merge pull request #37 from tsoding/cleanup-rule110
+    
+    Cleanup Rule 110
+
+commit 1d4ab5a383ad5bde9e1bb238a650987191fac776
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 16:01:33 2021 +0700
+
+    Cleanup Rule 110
+
+commit c95805ec7537cb51662c3d22c44f45f89f90b6cb
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 24 02:19:56 2021 +0700
+
+    Handle keyword in human()
+
+commit acf7bba65bb40311cebfaaefb4f6ef752435677e
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 23 16:45:41 2021 +0700
+
+    Better error message on intrinsic redefinition
+
+commit 3e4dd04854161ac92eef56162b1cbb3afa9eb0d5
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 23 15:42:30 2021 +0700
+
+    Add support for vim
+
+commit 5710b8beccaff519005ee2f1d4ae5ec04191231b
+Merge: 4ae452f b041059
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 23 00:50:25 2021 +0700
+
+    Merge pull request #35 from tsoding/refactor
+    
+    Refactor
+
+commit b04105985af68cf3976631e324ed3b76260ed52f
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 23 00:48:23 2021 +0700
+
+    Factor out Intrinsic out of Op
+
+commit 8e8c5b9ad515a2378913cb2ff304a2b3faf77159
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 23 00:32:33 2021 +0700
+
+    Factor out Keywords out of Ops
+
+commit 4ae452fc6dbe6805c39558aa1e5e30be30f473c1
+Merge: 6419a2a 637c315
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 22 21:46:02 2021 +0700
+
+    Merge pull request #34 from tsoding/divmod
+    
+    Introduce divmod operation
+
+commit 637c31592d63081a507cb7ce9221be195896d3ca
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 21:44:33 2021 +0700
+
+    Introduce divmod operation
+
+commit 6419a2a8db5d58878b827ad6c2ad3840b72c14f2
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 21:40:01 2021 +0700
+
+    Add 2drop to std.porth
+
+commit af6b504c484f6a14da45b50de11c4505c4061ace
+Merge: e0a0a87 66dd818
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 22 21:37:49 2021 +0700
+
+    Merge pull request #33 from tsoding/division
+    
+    Implement division operation
+
+commit 66dd8188e178b79c35fe016929c8d7670facc1b6
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 21:35:09 2021 +0700
+
+    Implement division operation
+
+commit e0a0a8755f08d6891dbfef1cf486591a8a504d90
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 19:15:48 2021 +0700
+
+    Clarify syscalls in std.porth
+
+commit 5a3bcdbe7eed51956d049ce08e341941defcba92
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 19:09:37 2021 +0700
+
+    Remove 2dup from the list of builtin words
+
+commit c492d5d17d7e1393f4aef9711c175cec59adf897
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 19:09:20 2021 +0700
+
+    Fix example in README
+
+commit b1cf82e7b59b6889f5f96f440780450c8161bb07
+Merge: 5fd9715 dab0095
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 22 19:08:33 2021 +0700
+
+    Merge pull request #32 from tsoding/unhardcode-2dup
+    
+    Unhardcode 2dup operation
+
+commit dab009516b27b3a6331fc8f0873eccfc767f523d
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 19:06:52 2021 +0700
+
+    Unhardcode 2dup operation
+    
+    Remove it from the core of the language and implement it as part of
+    the standard library.
+
+commit 5fd971565b6df333714033f797fd6664df6642c8
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 05:10:29 2021 +0700
+
+    Document character data type
+
+commit 831733413e22e423e10420c149f8e902d8abbca9
+Merge: 413483e 0fde039
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 22 04:49:50 2021 +0700
+
+    Merge pull request #31 from tsoding/char-one-byte
+    
+    Allow only one byte inside of character literals
+
+commit 0fde03975f179430cd39aa7f7ca27542dbafbb63
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 04:48:12 2021 +0700
+
+    Allow only one byte inside of character literals
+
+commit 413483e5bbaa82867667ee3b04e72da8159efc63
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 22 04:24:34 2021 +0700
+
+    Improve documentation for Integer and String data types
+
+commit 936aee3ff0ccd182fcd2fdba5a50a732acacaa80
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 18:31:54 2021 +0700
+
+    Tweak README
+
+commit c70af714745a77254f8234aa362425f682cfe98c
+Merge: b8b129c a33790e
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 21 18:22:39 2021 +0700
+
+    Merge pull request #29 from tsoding/linux-specific-module
+    
+    Introduce Linux specific module to standard library
+
+commit a33790e76b8cc43fc59d62866fc28087fff4e2a2
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 18:20:22 2021 +0700
+
+    Introduce Linux specific module to standard library
+
+commit b8b129c99e4568bfa6156d1b43e90d11814315a7
+Merge: 248c07c e492945
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 21 17:58:39 2021 +0700
+
+    Merge pull request #28 from tsoding/emacs-support
+    
+    Add simple emacs support for Porth
+
+commit e4929459f0b96620880e76cc07967df53ba0e212
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 16:04:01 2021 +0700
+
+    Add simple emacs support for Porth
+
+commit 248c07c8338e3cb58264d9eff0fbc0c441139a14
+Merge: 026a4bb f320361
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 21 15:48:58 2021 +0700
+
+    Merge pull request #27 from tsoding/include-paths
+    
+    Include paths
+
+commit f32036105717840cba0ee07918293af5fefae42a
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 15:46:26 2021 +0700
+
+    Document the standalone usage
+
+commit 5b54ae7461ca5307d4466b5cfa7e3baa0c2f54a1
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 15:40:48 2021 +0700
+
+    Use std library in all of the tests
+
+commit 13abdac614b09413762bd42bc5e9dd58b8aed4f4
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 15:31:33 2021 +0700
+
+    Implement simple include path mechanism
+
+commit 026a4bbb884b6db47f5c6a839858150e5ec1e1af
+Merge: 651fdf6 6807c50
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Tue Sep 21 02:47:32 2021 +0700
+
+    Merge pull request #26 from tsoding/macros
+    
+    Macros
+
+commit 6807c507a9efada5292288dbdd47b7d7e2422a09
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 02:44:09 2021 +0700
+
+    Fix mypy remarks again
+
+commit 315af193a53a87f6643b6bd77b955606162299cf
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 02:34:57 2021 +0700
+
+    Implement character literals
+
+commit 0ab03925640cbbbf980ca55568a37a6f1d3e27a1
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 02:22:02 2021 +0700
+
+    Fix mypy remarks
+
+commit 297b4b66542db1b162ace1cd57a35f7d99d5920a
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 02:15:47 2021 +0700
+
+    Additional work
+
+commit 72e2a59db534ca21fa40ae1761ef02ab47bec4ae
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 02:09:38 2021 +0700
+
+    Implement multiply operation
+
+commit a04bcb3937f4b786606daed4e7ee9b9cb20d9da6
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 01:59:24 2021 +0700
+
+    Add rough support for file includes
+
+commit d6c03e4a0ae873771cf4860b9e82cb7fe624d802
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 01:43:57 2021 +0700
+
+    Use macro system in rule110 example
+
+commit e3e5e61d402600d79b14a0f7fa281767cfbc299c
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 01:36:01 2021 +0700
+
+    Document the macro system
+
+commit 9e2da7838473bb1a027f926b5e77f575c97807a4
+Author: rexim <reximkut@gmail.com>
+Date:   Tue Sep 21 01:33:05 2021 +0700
+
+    Add basic support for macros
+
+commit 651fdf624cb520a867c036f86f2d039f48d9289e
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 21:27:47 2021 +0700
+
+    TODO about // inside of string literals
+
+commit 1b794049b009c3c8eaaa8f6e6d0de8e5a5a05388
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 20:26:30 2021 +0700
+
+    Discard the idea of ignoring the tests if .txt file is missing
+    
+    The way we do tests is not stablized yet.
+
+commit 4840d5ae110510471121f81aef9b6355598deb84
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 20:24:57 2021 +0700
+
+    Discard the idea of including docs into script for now
+    
+    We don't have enough information on how to do that yet.
+
+commit e3a77422ac5df0e662339aacfffdcd438a9931be
+Merge: cea0dc6 6aa16cc
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 20 17:04:22 2021 +0700
+
+    Merge pull request #25 from tsoding/unclosed-string-literal
+    
+    Report unclosed string literal as a compiler error
+
+commit 6aa16ccbca6571d091a53708c29345643a3369be
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 17:03:02 2021 +0700
+
+    Report unclosed string literal as a compiler error
+
+commit cea0dc67bbd44b82b5facdb7182e29f2912b89fd
+Merge: a9d85c9 29d91bb
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 20 15:51:07 2021 +0700
+
+    Merge pull request #24 from tsoding/mypy
+    
+    Run mypy on CI
+
+commit 29d91bb4d767f767b7b7b4ebc95e9c3839953120
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 15:49:29 2021 +0700
+
+    Run mypy on CI
+
+commit 672ee0207f007666054e9473ef4c308b310647d9
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 15:46:38 2021 +0700
+
+    Fix mypy remarks
+
+commit a9d85c9f64852c49c6b80d7eab1cefe663257cdc
+Merge: 5da80c1 8e5dd8f
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Mon Sep 20 14:28:39 2021 +0700
+
+    Merge pull request #23 from tsoding/fix-escaping
+    
+    Fix escaping with `unicode_escape` encoding
+
+commit 8e5dd8f069f1b19bd3c4c2c684257979b3911457
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 20 14:23:52 2021 +0700
+
+    Fix escaping with `unicode_escape` encoding
+    
+    The codec for whatever reason assumes `latin-1` encoding instead of
+    `utf-8`, so we have to do a small round-trip in `unescape_string()`
+    function to compensate for that.
+    
+    Close #19
+    Close #20
+
+commit 5da80c14bd3e2bcd2cc7030affad88dfd307a3fe
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 17:33:01 2021 +0700
+
+    Cleanup
+
+commit a5c6d714b5a1ecb14f82f7533ecd0aa932f476d9
+Merge: 5e9c026 b50196c
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 19 06:49:50 2021 +0700
+
+    Merge pull request #16 from tsoding/refactor
+    
+    Major refactoring
+
+commit b50196c8c84945840f554da923ec7b66c622d0c0
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:46:15 2021 +0700
+
+    Turn Op into a dataclass
+
+commit b504a34e8fdd038e2b62d5cb3cbdd0a872b9ff87
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:30:38 2021 +0700
+
+    Use enum.Enum for OpType definition
+
+commit 343ba4ae11e6025a381cbd1b7f50b3990c978dca
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:22:22 2021 +0700
+
+    Turn token into a dataclass
+
+commit f3f06c35b98c387960e53b81585582b9edf969dd
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:16:29 2021 +0700
+
+    Use enum.Enum to define TokenType
+
+commit 55e7ad982ed7e1467f1dc6b9529f68f0e1af39df
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:05:51 2021 +0700
+
+    Introduce OpType and TokenType
+
+commit f6838ddfd55731dbd9ea02300c8d9211d59e1ec8
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 06:00:57 2021 +0700
+
+    Simplify return type of lex_line
+
+commit 4465e5517155b6b9ee9e60b2b3600a660100bc62
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 05:54:35 2021 +0700
+
+    Annotate procedures with expected types
+
+commit e4d77cd2b9ae159e79d2c87d89e9cfeb4d83bb99
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 05:34:22 2021 +0700
+
+    Rename key procedures
+    
+    The renaming has the purpose of clarifying the details of what exactly
+    the procedures are doing:
+    - simulate_program -> simulate_little_endian_linux
+    - compile_program -> generate_nasm_linux_x86_64
+    - parse_token_as_op -> compile_token_to_op
+    - crossreference_blocks -> compile_tokens_to_program
+    - load_program_from_file -> compile_file_to_program
+
+commit 5e9c026a2ea1d7a5700326c3e13447934a359303
+Merge: 9687e7e 34a6534
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 19 05:07:00 2021 +0700
+
+    Merge pull request #15 from tsoding/get-rid-of-addr
+    
+    Get rid of op['addr'] field
+
+commit 34a6534af963ff72a56a86800f72418ab6b5f5ab
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 05:03:16 2021 +0700
+
+    Get rid of op['addr'] field
+
+commit 9687e7e6d8408fa827429c9e15e11d3139cd2550
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 04:05:25 2021 +0700
+
+    Add string literals to Language Reference
+
+commit d2e2b606170d12cc9f7bdb08d0f4ee9e786bc71b
+Merge: d9bb466 34c33aa
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 19 03:56:20 2021 +0700
+
+    Merge pull request #14 from tsoding/tests
+    
+    Explicit separation line in all of the test cases
+
+commit 34c33aaf6491a384912261fc6ffb4cae86a35a39
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 03:51:35 2021 +0700
+
+    Explicit separation line in all of the test cases
+
+commit d9bb466e8275ddda057ed704b691142357a78b94
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 03:44:30 2021 +0700
+
+    Fix docs
+
+commit a3dae222c73e4c6840133182afb40d2dc71af427
+Merge: 14ae208 90fcd6b
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sun Sep 19 01:36:03 2021 +0700
+
+    Merge pull request #13 from tsoding/string-literals
+    
+    Implement string literals
+
+commit 90fcd6bf59bdc51b9d7bb6ec6bd834cb5618de46
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 01:34:43 2021 +0700
+
+    Add Hello, World example to README
+
+commit e3c9c0e67135b3706db438623900ac73ed767967
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 01:32:16 2021 +0700
+
+    Update Hello, World in examples
+
+commit b119280a4492d8507f08a4f2f24578fc7b5f0d58
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 01:31:02 2021 +0700
+
+    Implement string literals
+
+commit ece62b3ab375965830ea5ae5325ac818c71eb4c8
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 19 00:38:48 2021 +0700
+
+    Introduce the notion of tokens
+
+commit 14ae2088b9b9ad030d9e77cd13b8e569c8b1b1bb
+Merge: b543553 43ff97d
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Sep 18 21:02:33 2021 +0700
+
+    Merge pull request #12 from tsoding/dump-to-print
+    
+    Dump to print
+
+commit 43ff97db9acbe9537e03501cc6e3a85022dae66e
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 18 20:57:41 2021 +0700
+
+    Rename `dump` to `print`
+
+commit b5efe6fe09ffdb211a5da4bac7db947f41d8dee7
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 18 20:41:57 2021 +0700
+
+    Discard the idea of using forth style of load/fetch for now
+    
+    The bikeshed is going to be red
+
+commit b54355379726ca5f953290021ae96236938086b7
+Merge: b7fbb6c ce0be10
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Sat Sep 18 00:43:37 2021 +0700
+
+    Merge pull request #11 from tsoding/syscalls
+    
+    Syscalls
+
+commit ce0be10ee6f87d1ca88bd159033893b565d6ca93
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 18 00:41:32 2021 +0700
+
+    Implement syscall0
+
+commit 878716aebe5e26ce5c4dba927779ea1449c0dfb1
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 18 00:36:06 2021 +0700
+
+    Push the syscall result onto the stack
+
+commit b7fbb6c40bd1f0128c180ddb877ac87968fcccad
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 18 00:12:23 2021 +0700
+
+    TODO about command line arguments
+
+commit 6ab75aaa1c08fe1223d9bd89998b1147404977b7
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 23:55:45 2021 +0700
+
+    Discard the idea of using ctypes for now
+    
+    It is unclear how to pass the pointers to the mem
+
+commit b5116c69299f13503bbf67352dcfd5e5ad7d43ad
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 22:17:19 2021 +0700
+
+    Pass command line arguments to the program in `com -r`
+
+commit 0836b1ff68652d3994cd378fb01026ee923e49c5
+Merge: 912e105 5c62eea
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 17 19:57:32 2021 +0700
+
+    Merge pull request #10 from tsoding/cleanup-tests
+    
+    Cleanup tests
+
+commit 5c62eea3dd6d2eccb3685cfc7d6072244830e803
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:54:08 2021 +0700
+
+    Use examples as the test cases
+
+commit 912e105f79db11967e0b92d769c83887ef131b24
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:41:02 2021 +0700
+
+    Clarify the plan
+
+commit 3a66eac1134cd5414c8c159f95446a4c0f59d990
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:36:34 2021 +0700
+
+    Add opascal emacs mode to memory test
+
+commit 390f470c14010c09469506f2e7eadba8ed763d7e
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:35:23 2021 +0700
+
+    Add dash break line to control-flow test
+
+commit b88b0a55daa341b8d7543058e54ec918f44920dc
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:34:33 2021 +0700
+
+    Add dash break line to bitwise test
+
+commit a8b5844b83e8c7ad1d48e0d21f50e99f7000a3c3
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 19:33:32 2021 +0700
+
+    Add dash break line to arithmetics test
+
+commit 5838fb1f26f0e47ef0c9db28638c1fd788b58737
+Merge: 6fdd862 7062c6b
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 17 17:40:44 2021 +0700
+
+    Merge pull request #9 from tsoding/7-push-big-numbers-x86-64
+    
+    (#7) Allow pushing big 64 bit numbers on x86_64
+
+commit 7062c6be8c2cd0f4af528cbcce460cf8bb8fd35b
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 17:39:00 2021 +0700
+
+    (#7) Allow pushing big 64 bit numbers on x86_64
+
+commit 6fdd8621f9e710fff6f608facd70658638aaf871
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 17:21:49 2021 +0700
+
+    Minor logging style changes
+
+commit 921354d27cb7f0286784b25bd925b60201e8cb31
+Merge: 0b4afff 7538a31
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 17 17:13:54 2021 +0700
+
+    Merge pull request #8 from tsoding/not-equals
+    
+    Implement `not equals` operation
+
+commit 7538a31804da4f14cd9d20a0d792f6dcdc5b9f5c
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 17:09:48 2021 +0700
+
+    Implement `not equals` operation
+
+commit 0b4afffec0d8a6db51a685cd3565eca5952e0794
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 02:21:07 2021 +0700
+
+    More work
+
+commit 579c1927ffe7921037f0cb81fe15efeb12cb25ee
+Merge: 712874b 98c876a
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Fri Sep 17 00:35:34 2021 +0700
+
+    Merge pull request #6 from tsoding/rule110-speedup
+    
+    Speedup rule 110 implementation
+
+commit 98c876aab4b958e52ddbf0adf6fdc2a12deb16fd
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 17 00:34:35 2021 +0700
+
+    Speedup rule 110 implementation
+
+commit 712874b22d319f84a5fbbf2ceefe7f3ef7e38063
+Merge: ee0f8f6 a608bce
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 16 16:29:10 2021 +0700
+
+    Merge pull request #5 from tsoding/remaining-comparison
+    
+    Implement remaining comparison operators
+
+commit a608bce4278b19244e5e3b65a1ab8bec19d98383
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 16 16:27:42 2021 +0700
+
+    Implement remaining comparison operators
+    
+    Close #2
+
+commit ee0f8f61a0d711efda68a71cdb4d4e93b737392e
+Merge: 2343a42 4677bee
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 16 16:08:06 2021 +0700
+
+    Merge pull request #4 from tsoding/rename-tests
+    
+    Rename tests
+
+commit 4677bee6a172202e5c82c1c373dd5d2833f6f048
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 16 16:07:03 2021 +0700
+
+    Get rid of the prefix numbers in tests
+    
+    They don't add any value
+
+commit d0097977cc17708bc6a46866a0e72fa27be41a9a
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 16 05:21:16 2021 +0700
+
+    Implement mod operation
+
+commit 2343a423a6a36e418137a6acb8bcfd2ffe9cb519
+Merge: 70b0331 d650cbd
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Thu Sep 16 01:25:22 2021 +0700
+
+    Merge pull request #3 from tsoding/rule110
+    
+    Implement rule 110 in porth
+
+commit d650cbd19d3dfa872c8aefbcba7625bf5e2ddab9
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 16 01:22:50 2021 +0700
+
+    Implement rule 110 in porth
+
+commit 27503199f27ce08e12ee847c6dbf94b261a6916d
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 16 00:40:18 2021 +0700
+
+    Implement 4 new operations
+    
+    - shr - logical shift right
+    - shl - logical shift left
+    - bor - bitwise or
+    - band - bitwise and
+
+commit 70b033121ecef6c7cfd4455567be52efbb6e1c95
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 16:30:20 2021 +0700
+
+    TODO about syscall results
+
+commit 142855e2c73e01d26ddc0fd95042d68849cc8e59
+Merge: 9389387 2ce64fb
+Author: Alexey Kutepov <reximkut@gmail.com>
+Date:   Wed Sep 15 15:23:28 2021 +0700
+
+    Merge pull request #1 from tsoding/ci
+    
+    Setup CI
+
+commit 2ce64fbb2556628af4af70720c8e2f64a55ba8e6
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 15:21:05 2021 +0700
+
+    Provide more generic version of python 3?
+
+commit 26664ac2418d18ee876ac9fabb2f80bb7a9f9b36
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 15:19:25 2021 +0700
+
+    Setup CI
+
+commit 9389387e51cc561afe5c7ee615a9e84205b36806
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 15:15:31 2021 +0700
+
+    Introduce debug mode
+
+commit 3f525223d30f4b0b8b5a588f8a78c885107ad94e
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 15:08:40 2021 +0700
+
+    Cleanup OP_GT and OP_LT implementations of the simulation
+
+commit 3c9abae906af875ae14cd3beb6ebbcdecacb12e1
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 14:55:35 2021 +0700
+
+    Fix Language Reference formatting
+
+commit 3b0122169c06148f60b61370ea79fe3aade92876
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 14:54:07 2021 +0700
+
+    Document project testing
+
+commit 57c2a8c6cda9cae82af1d21518e32ee9ee0c0f6c
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 14:48:43 2021 +0700
+
+    Actually assert expected output of the tests
+
+commit 64feb4474d7533aafd4117f4613f9be4580dfc15
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 15 13:57:29 2021 +0700
+
+    Implement `drop` operation
+
+commit 602c51a6ed448db01e14675f68a97c07e94fb1a1
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 23:29:10 2021 +0700
+
+    Implement `swap` operation
+
+commit 26eff898c6d6944a3c18c94209d22fa1eb8a996d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 21:27:14 2021 +0700
+
+    Fix typos
+
+commit 775cc4469f6ef420c1a14e030f4cd9ce4db3acb5
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 21:26:57 2021 +0700
+
+    Update example
+
+commit 84dab3c498cbbde952352839bcfa1b0408060bc8
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 21:24:03 2021 +0700
+
+    Implement 2dup and < words
+
+commit 9f31e5926615f83bc092a214991c6cdd7e7ceff3
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 21:00:00 2021 +0700
+
+    Reorganize examples and tests
+    
+    - Organize tests by the same categories as the reference manual in the README
+    - Move the Hello World out of the tests into the examples folder
+
+commit fd0065322f23987a18fc28ca2c58b3a15f0661f7
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 16:55:42 2021 +0700
+
+    Fix syscall docs
+    
+    syscall supports up to 6 arguments
+
+commit 9351597fcebe07dd5b635f9f32cb69b405934987
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 16:43:45 2021 +0700
+
+    Proxy the exit code of `com -r` subcommand
+
+commit a5577bec077e906c5461ef2f311fd917b557b326
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 16:30:23 2021 +0700
+
+    Clean up some tests
+
+commit 20b5c08920c570be67a13309ce18058a2a07ea83
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 16:26:17 2021 +0700
+
+    Implement the full set of syscall operations
+
+commit 13f6d55d452a07d84839bb06584fbf1e2a807ab3
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 02:27:58 2021 +0700
+
+    Fix `dump` operation usage in the README examples
+
+commit 78c5aa313e3e5e31adcd127d751bc5b6126a6a9d
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 01:53:59 2021 +0700
+
+    Fix `dump` documentation
+
+commit 73b1e1f278b1c1f545d24eb95ba9f7390b864a0f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 01:32:39 2021 +0700
+
+    Implement syscalls support
+
+commit 5e4ee7784bc194ff9089c077857ddc524ee2485b
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:49:51 2021 +0700
+
+    Implement memory access operations in simulation mode
+
+commit c2499b5dc62a0e6e647b6377871c1524ddcffe97
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:35:28 2021 +0700
+
+    Add support for loading and storing bytes from/into the memory
+
+commit 77f57a63080298869ef903b3693d00509a87af2f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:15:10 2021 +0700
+
+    Rename `.` to `dump`
+
+commit 0ea9f12d09f2587bc12fdef57bccab8dda8c1879
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:14:59 2021 +0700
+
+    Fix error reporting on unknown token
+
+commit 58c4c41f7a597103607ab96241b6bda1ad9d1d92
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:14:33 2021 +0700
+
+    Temporarily remove 4th test case
+    
+    Since it's not working in the simulation anyway
+
+commit 0316efab7d54dcfc200d51aef561ba0170109388
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:14:21 2021 +0700
+
+    Stub mem implementation for the simulation
+
+commit d2a74c7823aa9ed0d922f619a15e7ddc5228359f
+Author: rexim <reximkut@gmail.com>
+Date:   Mon Sep 13 00:07:45 2021 +0700
+
+    Introduce mem operation
+
+commit 2853cfdae21db8af71f5706fed65b3aa9aa7d84c
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 18:43:19 2021 +0700
+
+    Rename cmd_echoed -> cmd_call_echoed
+
+commit 7a9ab738791786803fbc17c14a727d60efcc4c11
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 18:42:54 2021 +0700
+
+    Remove unused imports
+
+commit 8d042e707917813af3cdd0b0ce37fd87da2b903c
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 18:37:14 2021 +0700
+
+    Implement test.py script
+
+commit 0734dac90f57f03a7080e5a27d0ec8a4236b4259
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 08:02:32 2021 +0700
+
+    Report block mismatch errors as compiler errors not asserts
+
+commit a58b8c3489b90b2274f3963139b0dd0e39c48569
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 07:50:10 2021 +0700
+
+    Associate location with the ops
+
+commit fa50287ff5ea5bb48a30f2f11acd45a48b2dc65f
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 07:48:18 2021 +0700
+
+    Turn ops into dicts
+
+commit 867579c80734127b692038f6f13ce891b3b54470
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 07:29:56 2021 +0700
+
+    TODOs
+
+commit 8722c276236858b6921823b1078060373aca3aca
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 07:17:19 2021 +0700
+
+    Add support for C-style comments
+
+commit 5cc2fc59b5796916e1c1b2ca5ae1e0c60cb4e036
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 06:35:48 2021 +0700
+
+    Remove redundant op ctors
+
+commit aba49a923231cbe35a8e11bd9733801b0d0021c0
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 06:30:11 2021 +0700
+
+    Make porth.py resistant to loading from shells
+
+commit cd028c8e9d47cec3ce3e0dcc359c2a95098082c1
+Author: rexim <reximkut@gmail.com>
+Date:   Sun Sep 12 05:47:57 2021 +0700
+
+    Implement -o flag for com subcommand
+
+commit 528df5b576ecca395f058671b3217395df9c5168
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 16:54:55 2021 +0700
+
+    Implement -r flag for the com subcommand
+
+commit b29fb3b6e782f56b87a67ca635572707e756f69e
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 15:08:03 2021 +0700
+
+    Document Control Flow constructions
+
+commit b887b168eded72df547542256bf235f3fcf00a6c
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 15:02:53 2021 +0700
+
+    Document arithmetic operations
+
+commit 1b2a3dea9181016037734e49e8ccf2a796ef4e32
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 15:00:23 2021 +0700
+
+    Document comparison operations
+
+commit 562c7186ed7bd0bfc205f77aa4d8fdda1fecf873
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:57:19 2021 +0700
+
+    Document Stack Manipulations
+
+commit 62ac19447aab03fc64b02ce0998a964e366c7a16
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:40:56 2021 +0700
+
+    More details for Quick Start instructions
+
+commit 0478d811182e982ca7a0a05ba63df2d6484ff405
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:39:03 2021 +0700
+
+     More details on the compilation dependencies
+
+commit b7536f9bcfbf34a91c075129d712c580988f3b9e
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:37:10 2021 +0700
+
+    Typo
+
+commit 73479bfe2d61263a97747cac62afaa380ac0dd17
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:36:32 2021 +0700
+
+    Clean up README a bit
+
+commit bf0c087d63885dcd82e81dc759590d68f9c4e877
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 14:36:19 2021 +0700
+
+    Add more tests
+
+commit cb62b42bdb6bad19c59744d32cb14dfca309012a
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 03:32:04 2021 +0700
+
+    Add address to the end of the program
+
+commit a6ddbe8f65c3a155932ca34217ceccee6b88b931
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 01:22:52 2021 +0700
+
+    Introduce while loops
+
+commit 754bc2b6388991697320b86d84c274446fd289bf
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 00:49:42 2021 +0700
+
+    Introduce > operation
+
+commit 992a0a7d38c6599e53c5f0f47f6e14100e8fb276
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 00:43:28 2021 +0700
+
+    Introduce dup operation
+
+commit 369de0e4f10cd398c6b8e0fd78da7d2d70059287
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 00:34:02 2021 +0700
+
+    Implement `else` for `if`-construction
+
+commit 9471e4b6f35ce14384082b866b6d5c1522a437b4
+Author: rexim <reximkut@gmail.com>
+Date:   Sat Sep 11 00:07:01 2021 +0700
+
+    Implement else-less if
+
+commit eaee263d3e98162769d85aa5d5880450105086b8
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 10 23:28:56 2021 +0700
+
+    Introduce `equal` operation
+
+commit 936fdcc4eb399b280b301062a2d2f726332ac2e8
+Author: rexim <reximkut@gmail.com>
+Date:   Fri Sep 10 01:03:57 2021 +0700
+
+    Report locations of the errors
+
+commit 0cc4aba2aef406b36c53e1b795a93a451a02e12c
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:54:21 2021 +0700
+
+    Tweak logging style
+
+commit 435b48f046a4b45b8c61177058de85ed51ae73f5
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:52:17 2021 +0700
+
+    Fix usage() call
+
+commit 9bb6345a2c19474383815bae5dc0b709ef60e211
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:50:25 2021 +0700
+
+    Shell escaped the output of the echoed cmds
+
+commit d3598720a593a54804dfbc731899882b665ed1c0
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:42:31 2021 +0700
+
+    Get rid of the uncons
+
+commit 8e45acb8765ea0997ca987659827eb3151c6fd13
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:35:44 2021 +0700
+
+    Add rough plan to the README
+
+commit c4695bb70d6288afda7cebd07d367f7fda9724e6
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 16:35:06 2021 +0700
+
+    Compute output path based on the input path
+
+commit 782555b15ebd62d718e20aa164d4a928b807ddd5
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 15:47:53 2021 +0700
+
+    program_name -> compiler_name
+    
+    Cause the word "program" may be confused with the program we are compiling.
+
+commit 8943f22f03f580a696973be1ce63ee9c30bca2cb
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 15:45:44 2021 +0700
+
+    Add help subcommand
+
+commit a376697dd7ffc906e10a9e3a5b51d7c4740a672b
+Author: rexim <reximkut@gmail.com>
+Date:   Thu Sep 9 15:41:27 2021 +0700
+
+    Warning about work in progress
+
+commit 688cab6f409a59e207ebd7549727aa5be1c9d8a2
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 8 00:57:31 2021 +0700
+
+    Update README
+
+commit be77754ef0942cec55e21e0d930eaebe527d4a76
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 8 00:56:34 2021 +0700
+
+    Unhardcode program
+
+commit ef407fce0fa45b6006b18ab9ecf982e271daebab
+Author: rexim <reximkut@gmail.com>
+Date:   Wed Sep 8 00:36:58 2021 +0700
+
+    Ready. Set. Go!

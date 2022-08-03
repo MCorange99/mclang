@@ -1,0 +1,5 @@
+mem 0 + 97 store
+mem 1 + 98 store
+mem 2 + 99 store
+
+mem 1 + load dump
