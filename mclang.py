@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
+from audioop import add
 import sys
 import subprocess
 import os
 
 MEMORY_SIZE = 640_000 # should be enough
 
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def run_cmd(cmd):
     print("[CMD]: %s" % ' '.join(cmd));
@@ -34,13 +45,20 @@ OP_DO = iota();
 OP_MEM = iota();
 OP_LOAD = iota();
 OP_STORE = iota();
+OP_SYSCALL1 = iota();
+OP_SYSCALL2 = iota();
+OP_SYSCALL3 = iota();
+OP_SYSCALL4 = iota();
+OP_SYSCALL5 = iota();
+OP_SYSCALL6 = iota();
 COUNT_OPS = iota();
 
-def simulate_program(program):
+def simulate_program(program, dump_mem=0):
     stack = []
+    mem = bytearray(MEMORY_SIZE)
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 15, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 21, "Exhaustive handling of operations in simulation"
         op = program[ip]
         if op['type'] == OP_PUSH:
             stack.append(op['value'])
@@ -97,13 +115,51 @@ def simulate_program(program):
             else:
                 ip += 1
         elif op['type'] == OP_MEM:
-            assert False, "Not implemented"
-        elif op['type'] == OP_STORE:
-            assert False, "Not implemented"
+            stack.append(0)
+            ip += 1
         elif op['type'] == OP_LOAD:
+            addr = stack.pop()
+            byte = mem[addr]
+            stack.append(byte)
+            ip += 1
+        elif op['type'] == OP_STORE:
+            value = stack.pop()
+            addr = stack.pop()
+            mem[addr] = value % 0xFF
+            ip += 1
+        elif op['type'] == OP_SYSCALL1:
+            assert False, "Not implemented"
+        elif op['type'] == OP_SYSCALL2:
+            assert False, "Not implemented"
+        elif op['type'] == OP_SYSCALL3:
+            syscall_num = stack.pop()
+            arg1 = stack.pop()
+            arg2 = stack.pop()
+            arg3 = stack.pop()
+            if syscall_num == 1:
+                fd = arg1
+                buf = arg2
+                count = arg3
+                s = mem[buf:buf+count].decode("utf-8")
+                if fd == 1:
+                    print(s, end='')
+                elif fd == 2:
+                    print(s, end='', file=sys.stderr)
+                else:
+                    assert False, "Unknown file descriptor %d" % arg1
+            else:
+                assert False, "Unknown syscall number %d" % syscall_num
+            ip += 1
+        elif op['type'] == OP_SYSCALL4:
+            assert False, "Not implemented"
+        elif op['type'] == OP_SYSCALL5:
+            assert False, "Not implemented"
+        elif op['type'] == OP_SYSCALL6:
             assert False, "Not implemented"
         else:
             assert False, "Unreachable"
+    if dump_mem > 0:
+        print(mem[:dump_mem])
 
 def compile_program(program, file_path):
     print("[INFO]: Generating %s" % file_path)
@@ -146,7 +202,7 @@ def compile_program(program, file_path):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 15, "Exhaustive handling of ops in compilation"
+            assert COUNT_OPS == 21, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
             if op['type'] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op['value'])
@@ -227,6 +283,30 @@ def compile_program(program, file_path):
                 out.write("    pop rbx\n")
                 out.write("    pop rax\n")
                 out.write("    mov [rax], bl\n")
+            elif op['type'] == OP_SYSCALL1:
+                out.write("    ; -- syscall1 --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    syscall\n")
+            elif op['type'] == OP_SYSCALL2:
+                out.write("    ; -- syscall2 --\n")
+                assert False, "Not implemented"
+            elif op['type'] == OP_SYSCALL3:
+                out.write("    ; -- syscall3 --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    pop rsi\n")
+                out.write("    pop rdx\n")
+                out.write("    syscall\n")
+            elif op['type'] == OP_SYSCALL4:
+                out.write("    ; -- syscall4 --\n")
+                assert False, "Not implemented"
+            elif op['type'] == OP_SYSCALL5:
+                out.write("    ; -- syscall5 --\n")
+                assert False, "Not implemented"
+            elif op['type'] == OP_SYSCALL6:
+                out.write("    ; -- syscall6 --\n")
+                assert False, "Not implemented"
                 
             else:
                 assert False, "Unreachable"
@@ -241,7 +321,7 @@ def compile_program(program, file_path):
         
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 15, "You didnt implement the OP dumbass"
+    assert COUNT_OPS == 21, "You didnt implement the OP dumbass"
     loc = (file_path, row, col)
     if word == "+":
         return {'type': OP_PLUS, 'loc': loc}
@@ -271,6 +351,18 @@ def parse_token_as_op(token):
         return {'type': OP_STORE, 'loc': loc}
     elif word == "load":
         return {'type': OP_LOAD, 'loc': loc}
+    elif word == "syscall1":
+        return {'type': OP_SYSCALL1, 'loc': loc}
+    elif word == "syscall2":
+        return {'type': OP_SYSCALL2, 'loc': loc}
+    elif word == "syscall3":
+        return {'type': OP_SYSCALL3, 'loc': loc}
+    elif word == "syscall4":
+        return {'type': OP_SYSCALL4, 'loc': loc}
+    elif word == "syscall5":
+        return {'type': OP_SYSCALL5, 'loc': loc}
+    elif word == "syscall6":
+        return {'type': OP_SYSCALL6, 'loc': loc}
     else:
         try:
             return {'type': OP_PUSH, 'value': int(word), 'loc': loc}
@@ -282,7 +374,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 15, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 21, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op['type'] == OP_IF:
             stack.append(ip)
         elif op['type'] == OP_ELSE:
@@ -343,18 +435,27 @@ def load_program(fd):
 def usage(exec):
     print("Usage: %s [SUBCOMMAND] [FLAGS] [FILE]" % exec)
     print("SUBCOMMANDS:")
-    print("    c, com, compile   => Compile the program.")
-    print("    s, sim, simulate  => Simulate/interpret the program.")
+    print("    c, com, compile                     => Compile the program.")
+    print("    s, sim, simulate                    => Simulate/interpret the program.")
     print("FLAGS:")
-    print("    -h, --help        => Show this help text.")
-    print("    -r, --run         => Run the program after compiling.")
-    print("    -rm, --remove     => Remove the out.asm and out.o files.")
-    print("    -o [FILENAME]     => The name of the compile program.")
+    print("    -h, --help                          => Show this help text.")
+    print("    -r, --run                           => Run the program after compiling. Only relavent in compile mode.")
+    print("    -rm, --remove                       => Remove the out.asm and out.o files. Only relavent in compile mode.")
+    print("    -o [FILENAME]                       => The name of the compile program.")
+    print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
 
 def run_compiled_prog(outfile):
     print("Running \"%s\":" % outfile);
-    subprocess.call(["./" + outfile]);
+    exit_code = subprocess.call(["./" + outfile]);
+
+    if exit_code == 0:
+        print("\n" + colors.OKGREEN + "Process exited normally.")
+    else:
+        print("\n" + colors.FAIL + "Process exited abnormally with exit code " + colors.UNDERLINE + str(exit_code) + colors.ENDC + colors.FAIL + "." )
+
+
+    
 
 
 global outfile
@@ -362,6 +463,7 @@ outfile = "output"
 b_run = False
 b_outfile = False
 b_remove = False
+i_dumpmem = 0
 
 def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir = "build/asm"):
     basepath = ""
@@ -399,6 +501,11 @@ if __name__ == "__main__":
                 outfile = flag
                 continue
 
+            if i_dumpmem == -1:
+                
+                i_dumpmem = flag
+                continue
+
             if flag == "-h" or flag == "--help":
                 usage(prog);
                 sys.exit(1);
@@ -409,6 +516,8 @@ if __name__ == "__main__":
                 b_outfile = True
             elif flag == "-rm" or flag == "--remove":
                 b_noremove = True
+            elif flag == "-dm" or flag == "--dump-memory":
+                i_dumpmem = -1
             else:
                 print("[ERR]: Unknown flag \"%s\". Exiting!" % flag);
                 sys.exit(1);
@@ -427,7 +536,7 @@ if __name__ == "__main__":
     if subc == "s" or subc == "sim" or subc == "simulate":
 
         program = load_program(input_filepath)
-        simulate_program(program);
+        simulate_program(program, i_dumpmem);
     elif subc == "c" or subc == "com" or subc == "compile":
 
         program = load_program(input_filepath)
