@@ -40,6 +40,7 @@ OP_ELSE = iota();
 OP_DUMP = iota();
 OP_DUP = iota();
 OP_GT = iota();
+OP_LT = iota();
 OP_WHILE = iota();
 OP_DO = iota();
 OP_MEM = iota();
@@ -51,14 +52,28 @@ OP_SYSCALL3 = iota();
 OP_SYSCALL4 = iota();
 OP_SYSCALL5 = iota();
 OP_SYSCALL6 = iota();
+OP_2DUP=iota();
+OP_SWAP=iota();
+OP_DROP=iota();
+OP_SHR=iota();
+OP_SHL=iota();
+OP_BOR=iota();
+OP_BAND=iota();
+OP_OVER=iota();
 COUNT_OPS = iota();
+
+
+TOKEN_WORD = iota(True);
+TOKEN_INT = iota();
+COUNT_TOKENS = iota();
+
 
 def simulate_program(program, dump_mem=0):
     stack = []
     mem = bytearray(MEMORY_SIZE)
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 21, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 30, "Exhaustive handling of operations in simulation"
         op = program[ip]
         if op['type'] == OP_PUSH:
             stack.append(op['value'])
@@ -77,6 +92,26 @@ def simulate_program(program, dump_mem=0):
             a = stack.pop()
             b = stack.pop()
             stack.append(int(a == b))
+            ip += 1
+        elif op['type'] == OP_SHR:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b >> a))
+            ip += 1
+        elif op['type'] == OP_SHL:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b << a))
+            ip += 1
+        elif op['type'] == OP_BOR:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(a | b))
+            ip += 1
+        elif op['type'] == OP_BAND:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(a & b))
             ip += 1
         elif op['type'] == OP_IF:
             a = stack.pop()
@@ -100,10 +135,32 @@ def simulate_program(program, dump_mem=0):
             stack.append(a)
             stack.append(a)
             ip += 1
+        elif op['type'] == OP_2DUP:
+            b = stack.pop()
+            a = stack.pop()
+            stack.append(a)
+            stack.append(b)
+            stack.append(a)
+            stack.append(b)
+            ip += 1
+        elif op['type'] == OP_SWAP:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(a)
+            stack.append(b)
+            ip += 1
+        elif op['type'] == OP_DROP:
+            stack.pop()
+            ip += 1
         elif op['type'] == OP_GT:
             a = stack.pop()
             b = stack.pop()
             stack.append(int(a < b))
+            ip += 1
+        elif op['type'] == OP_LT:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(a > b))
             ip += 1
         elif op['type'] == OP_WHILE:
             ip += 1
@@ -156,6 +213,13 @@ def simulate_program(program, dump_mem=0):
             assert False, "Not implemented"
         elif op['type'] == OP_SYSCALL6:
             assert False, "Not implemented"
+        elif op['type'] == OP_OVER:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(b)
+            stack.append(a)
+            stack.append(b)
+            ip += 1
         else:
             assert False, "Unreachable"
     if dump_mem > 0:
@@ -202,7 +266,7 @@ def compile_program(program, file_path):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 21, "Exhaustive handling of ops in compilation"
+            assert COUNT_OPS == 30, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
             if op['type'] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op['value'])
@@ -218,6 +282,30 @@ def compile_program(program, file_path):
                 out.write("    pop rax\n")
                 out.write("    pop rbx\n")
                 out.write("    sub rbx, rax\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_SHR:
+                out.write("    ;; -- shr --\n")
+                out.write("    pop rcx\n")
+                out.write("    pop rbx\n")
+                out.write("    shr rbx, cl\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_SHL:
+                out.write("    ;; -- shl --\n")
+                out.write("    pop rcx\n")
+                out.write("    pop rbx\n")
+                out.write("    shl rbx, cl\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_BOR:
+                out.write("    ;; -- bor --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    or rbx, rax\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_BAND:
+                out.write("    ;; -- band --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    and rbx, rax\n")
                 out.write("    push rbx\n")
             elif op['type'] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
@@ -252,6 +340,23 @@ def compile_program(program, file_path):
                 out.write("    pop rax\n")
                 out.write("    push rax\n")
                 out.write("    push rax\n")
+            elif op['type'] == OP_2DUP:
+                out.write("    ;; -- 2dup -- \n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_SWAP:
+                out.write("    ;; -- swap --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
+            elif op['type'] == OP_DROP:
+                out.write("    ;; -- drop --\n")
+                out.write("    pop rax\n")
             elif op['type'] == OP_GT:
                 out.write("    ; -- greater than (>) --\n")
                 out.write("    mov rcx, 0\n");
@@ -260,6 +365,15 @@ def compile_program(program, file_path):
                 out.write("    pop rax\n");
                 out.write("    cmp rax, rbx\n");
                 out.write("    cmovg rcx, rdx\n");
+                out.write("    push rcx\n")
+            elif op['type'] == OP_LT:
+                out.write("    ; -- greater than (>) --\n")
+                out.write("    mov rcx, 0\n");
+                out.write("    mov rdx, 1\n");
+                out.write("    pop rbx\n");
+                out.write("    pop rax\n");
+                out.write("    cmp rax, rbx\n");
+                out.write("    cmovl rcx, rdx\n");
                 out.write("    push rcx\n")
             elif op['type'] == OP_WHILE:
                 out.write("    ;; -- while --\n")
@@ -284,30 +398,57 @@ def compile_program(program, file_path):
                 out.write("    pop rax\n")
                 out.write("    mov [rax], bl\n")
             elif op['type'] == OP_SYSCALL1:
-                out.write("    ; -- syscall1 --\n")
+                out.write("    ;; -- syscall1 --\n")
                 out.write("    pop rax\n")
                 out.write("    pop rdi\n")
                 out.write("    syscall\n")
             elif op['type'] == OP_SYSCALL2:
-                out.write("    ; -- syscall2 --\n")
-                assert False, "Not implemented"
+                out.write("    ;; -- syscall2 -- \n")
+                out.write("    pop rax\n");
+                out.write("    pop rdi\n");
+                out.write("    pop rsi\n");
+                out.write("    syscall\n");
             elif op['type'] == OP_SYSCALL3:
-                out.write("    ; -- syscall3 --\n")
+                out.write("    ;; -- syscall3 --\n")
                 out.write("    pop rax\n")
                 out.write("    pop rdi\n")
                 out.write("    pop rsi\n")
                 out.write("    pop rdx\n")
                 out.write("    syscall\n")
             elif op['type'] == OP_SYSCALL4:
-                out.write("    ; -- syscall4 --\n")
-                assert False, "Not implemented"
+                out.write("    ;; -- syscall4 --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    pop rsi\n")
+                out.write("    pop rdx\n")
+                out.write("    pop r10\n")
+                out.write("    syscall\n")
             elif op['type'] == OP_SYSCALL5:
-                out.write("    ; -- syscall5 --\n")
-                assert False, "Not implemented"
+                out.write("    ;; -- syscall5 --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    pop rsi\n")
+                out.write("    pop rdx\n")
+                out.write("    pop r10\n")
+                out.write("    pop r8\n")
+                out.write("    syscall\n")
             elif op['type'] == OP_SYSCALL6:
-                out.write("    ; -- syscall6 --\n")
-                assert False, "Not implemented"
-                
+                out.write("    ;; -- syscall6 --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    pop rsi\n")
+                out.write("    pop rdx\n")
+                out.write("    pop r10\n")
+                out.write("    pop r8\n")
+                out.write("    pop r9\n")
+                out.write("    syscall\n")
+            elif op['type'] == OP_OVER:
+                out.write("    ;; -- over --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    push rbx\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
             else:
                 assert False, "Unreachable"
         out.write("addr_%d:\n" % len(program))
@@ -318,63 +459,61 @@ def compile_program(program, file_path):
         out.write("segment .bss\n")
         out.write("mem: resb %d\n" % MEMORY_SIZE)
 
+
+
+BUILT_IN_WORDS = {
+                    "+":OP_PLUS,
+                    "-":OP_MINUS,
+                    "dump":OP_DUMP,
+                    "=":OP_DUMP,
+                    "if":OP_IF,
+                    "end":OP_END,
+                    "else":OP_ELSE,
+                    "dup":OP_DUP,
+                    ">":OP_GT,
+                    "<":OP_LT,
+                    "while":OP_WHILE,
+                    "do":OP_DO,
+                    "mem":OP_MEM,
+                    "store":OP_STORE,
+                    "load":OP_LOAD,
+                    "syscall1":OP_SYSCALL1,
+                    "syscall2":OP_SYSCALL2,
+                    "syscall3":OP_SYSCALL3,
+                    "syscall4":OP_SYSCALL4,
+                    "syscall5":OP_SYSCALL5,
+                    "syscall6":OP_SYSCALL6,
+                    '>>':OP_SHR,
+                    '<<':OP_SHL,
+                    '|':OP_BOR,
+                    '&':OP_BAND,
+                    '2dup':OP_2DUP,
+                    'swap':OP_SWAP,
+                    'drop':OP_DROP,
+                    'over':OP_OVER
+                }
+assert COUNT_OPS == len(BUILT_IN_WORDS) + 1, "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words"
+
+
         
 def parse_token_as_op(token):
-    (file_path, row, col, word) = token
-    assert COUNT_OPS == 21, "You didnt implement the OP dumbass"
-    loc = (file_path, row, col)
-    if word == "+":
-        return {'type': OP_PLUS, 'loc': loc}
-    elif word == "-":
-        return {'type': OP_MINUS, 'loc': loc}
-    elif word == "dump":
-        return {'type': OP_DUMP, 'loc': loc}
-    elif word == "=":
-        return {'type': OP_DUMP, 'loc': loc}
-    elif word == "if":
-        return {'type': OP_IF, 'loc': loc}
-    elif word == "end":
-        return {'type': OP_END, 'loc': loc}
-    elif word == "else":
-        return {'type': OP_ELSE, 'loc': loc}
-    elif word == "dup":
-        return {'type': OP_DUP, 'loc': loc}
-    elif word == ">":
-        return {'type': OP_GT, 'loc': loc}
-    elif word == "while":
-        return {'type': OP_WHILE, 'loc': loc}
-    elif word == "do":
-        return {'type': OP_DO, 'loc': loc}
-    elif word == "mem":
-        return {'type': OP_MEM, 'loc': loc}
-    elif word == "store":
-        return {'type': OP_STORE, 'loc': loc}
-    elif word == "load":
-        return {'type': OP_LOAD, 'loc': loc}
-    elif word == "syscall1":
-        return {'type': OP_SYSCALL1, 'loc': loc}
-    elif word == "syscall2":
-        return {'type': OP_SYSCALL2, 'loc': loc}
-    elif word == "syscall3":
-        return {'type': OP_SYSCALL3, 'loc': loc}
-    elif word == "syscall4":
-        return {'type': OP_SYSCALL4, 'loc': loc}
-    elif word == "syscall5":
-        return {'type': OP_SYSCALL5, 'loc': loc}
-    elif word == "syscall6":
-        return {'type': OP_SYSCALL6, 'loc': loc}
+    assert COUNT_TOKENS == 2, "Exaustive handling of tokens in parse_token_as_op"
+    if token['type'] == TOKEN_WORD:
+        if token['value'] in BUILT_IN_WORDS:
+            return {'type': BUILT_IN_WORDS[token['value']], 'loc': token['loc']}
+        else:
+            print("[ERR]: %s:%d:%d: %s" % (token['loc'] + token['value']))
+
+    elif token['type'] == TOKEN_INT:
+        return {'type': OP_PUSH, 'value': token['value'], 'loc': token['loc']}
     else:
-        try:
-            return {'type': OP_PUSH, 'value': int(word), 'loc': loc}
-        except ValueError as err:
-            print("[ERR]: %s:%d:%d: %s" % (file_path, row, col, err))
-            sys.exit(1)
+        assert False, "Unreachable"
 
 def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 21, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 30, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op['type'] == OP_IF:
             stack.append(ip)
         elif op['type'] == OP_ELSE:
@@ -412,18 +551,28 @@ def find_col(line, start, predicate):
         start += 1
     return start
 
+def lex_word(text):
+    try:
+        return (TOKEN_INT, int(text))
+    except ValueError:
+        return (TOKEN_WORD, text)
+
 def lex_line(line):
     col = find_col(line, 0, lambda x: not x.isspace())
     while col < len(line):
         col_end = find_col(line, col, lambda x: x.isspace())
-        yield (col, line[col:col_end])
+        yield (col, lex_word(line[col:col_end]))
         col = find_col(line, col_end, lambda x: not x.isspace())
 
 def lex_file(file_path):
     with open(file_path, "r") as f:
-        return [(file_path, row + 1, col + 1, token)
+        return [{
+                'type': token_type,
+                 'loc': (file_path, row + 1, col + 1),
+                 'value': token_value
+                }
             for (row, line) in enumerate(f.readlines())
-            for (col, token) in lex_line(line.split("//")[0])]
+            for (col, (token_type, token_value)) in lex_line(line.split("//")[0])]
 
 
 def load_program(fd):

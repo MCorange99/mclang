@@ -1,4 +1,3 @@
-
 mem 0 + 104 store // h
 mem 1 + 101 store // e
 mem 2 + 110 store // n
