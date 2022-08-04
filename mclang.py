@@ -7,15 +7,40 @@ import os
 MEMORY_SIZE = 640_000 # should be enough
 
 class colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    RESET      = '\33[0m'
+    BOLD       = '\33[1m'
+    ITALIC     = '\33[3m'
+    UNDERLINE  = '\33[4m'
+    BLINK      = '\33[5m'
+    BLINK2     = '\33[6m'
+    SELECTED   = '\33[7m'
+
+    BLACK      = '\33[30m'
+    RED        = '\33[31m'
+    GREEN      = '\33[32m'
+    YELLOW     = '\33[33m'
+    BLUE       = '\33[34m'
+    VIOLET     = '\33[35m'
+    BEIGE      = '\33[36m'
+    WHITE      = '\33[37m'
+
+    BLACKBG    = '\33[40m'
+    REDBG      = '\33[41m'
+    GREENBG    = '\33[42m'
+    YELLOWBG   = '\33[43m'
+    BLUEBG     = '\33[44m'
+    VIOLETBG   = '\33[45m'
+    BEIGEBG    = '\33[46m'
+    WHITEBG    = '\33[47m'
+
+    GREY       = '\33[90m'
+    RED2       = '\33[91m'
+    GREEN2     = '\33[92m'
+    YELLOW2    = '\33[93m'
+    BLUE2      = '\33[94m'
+    VIOLET2    = '\33[95m'
+    BEIGE2     = '\33[96m'
+    WHITE2     = '\33[97m'
 
 def run_cmd(cmd):
     print("[CMD]: %s" % ' '.join(cmd));
@@ -492,23 +517,42 @@ BUILT_IN_WORDS = {
                     'drop':OP_DROP,
                     'over':OP_OVER
                 }
-assert COUNT_OPS == len(BUILT_IN_WORDS) + 1, "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words"
+assert COUNT_OPS == len(BUILT_IN_WORDS) + 1, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
 
 
         
 def parse_token_as_op(token):
-    assert COUNT_TOKENS == 2, "Exaustive handling of tokens in parse_token_as_op"
+    assert COUNT_TOKENS == 2, "{red}Exaustive handling of tokens in parse_token_as_op{reset}".format(
+                                                                        red = colors.RED,
+                                                                        green = colors.GREEN,
+                                                                        reset = colors.RESET,
+                                                                        underline = colors.URL
+                                                                            )
     if token['type'] == TOKEN_WORD:
         if token['value'] in BUILT_IN_WORDS:
             return {'type': BUILT_IN_WORDS[token['value']], 'loc': token['loc']}
         else:
-            print("[ERR]: %s:%d:%d: %s" % (token['loc'] + (token['value'],)))
+            print("{red}[ERR]: {underline}{fn}{green}:{red}{line}{green}:{red}{col}{reset}{green}:{red} Unknown word: {underline}{word}{reset}".format(
+                                                                        fn = token['loc'][0],
+                                                                        line = token['loc'][1],
+                                                                        col = token['loc'][2],
+                                                                        word = token['value'],
+                                                                        red = colors.RED,
+                                                                        green = colors.GREEN,
+                                                                        reset = colors.RESET,
+                                                                        underline = colors.UNDERLINE
+                                                                            ))
             sys.exit(1)
 
     elif token['type'] == TOKEN_INT:
         return {'type': OP_PUSH, 'value': token['value'], 'loc': token['loc']}
     else:
-        assert False, "Unreachable"
+        assert False, "{red}Unreachable{reset}".format(
+                                        red = colors.RED,
+                                        green = colors.GREEN,
+                                        reset = colors.RESET,
+                                        underline = colors.UNDERLINE,
+                                            )
 
 def crossreference_blocks(program):
     stack = []
@@ -600,13 +644,20 @@ def run_compiled_prog(outfile):
     exit_code = subprocess.call(["./" + outfile]);
 
     if exit_code == 0:
-        print("\n" + colors.OKGREEN + "Process exited normally.")
+        print("\n{green}Process exited normally.{reset}".format(
+                                                red = colors.RED,
+                                                green = colors.GREEN,
+                                                reset = colors.RESET,
+                                                underline = colors.UNDERLINE,
+                                                    ))
     else:
-        print("\n" + colors.FAIL + "Process exited abnormally with exit code " + colors.UNDERLINE + str(exit_code) + colors.ENDC + colors.FAIL + "." )
-
-
-    
-
+        print("\n{red}Process exited abnormally with {underline}{code}{reset}{red} exit code.".format(
+                                                                red = colors.RED,
+                                                                green = colors.GREEN,
+                                                                reset = colors.RESET,
+                                                                underline = colors.UNDERLINE,
+                                                                code=exit_code
+                                                                    ))
 
 global outfile
 outfile = "output"
@@ -621,7 +672,12 @@ def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir
         basepath = "/".join(outfile.split("/")[:-1]) + "/"
 
     elif "\\" in outfile:
-        assert False, "Windows support is not implemented"
+        assert False, "{red}Windows support is not implemented{reset}".format(
+                                                                red = colors.RED,
+                                                                green = colors.GREEN,
+                                                                reset = colors.RESET,
+                                                                underline = colors.UNDERLINE,
+                                                                    )
     os.makedirs(basepath + build_dir, exist_ok = True)
     os.makedirs(basepath + obj_dir, exist_ok = True)
     os.makedirs(basepath + asm_dir, exist_ok = True)
@@ -636,7 +692,12 @@ if __name__ == "__main__":
     prog, *argv = argv
     if len(argv) < 1:
         usage(prog);
-        print("[ERR]: Not enough arguments. Exiting!")
+        print("{red}[ERR]: Not enough arguments. Exiting!{reset}".format(
+                                                            red = colors.RED,
+                                                            green = colors.GREEN,
+                                                            reset = colors.RESET,
+                                                            underline = colors.UNDERLINE,
+                                                                ))
         sys.exit(1);
 
 
@@ -669,14 +730,25 @@ if __name__ == "__main__":
             elif flag == "-dm" or flag == "--dump-memory":
                 i_dumpmem = -1
             else:
-                print("[ERR]: Unknown flag \"%s\". Exiting!" % flag);
+                print("{red}[ERR]: Unknown flag {green}{underline}\"{flag}\"{reset}{red}. Exiting!{reset}".format(
+                                                                red = colors.RED,
+                                                                green = colors.GREEN,
+                                                                reset = colors.RESET,
+                                                                underline = colors.UNDERLINE,
+                                                                flag=flag
+                                                                    ));
                 sys.exit(1);
         else:
             input_filepath = flag
         
     if input_filepath == "":
         usage(prog)
-        print("[ERR]: No file supplied. Exiting!")
+        print("{red}[ERR]: No file supplied. Exiting!{reset}".format(
+                                                    red = colors.RED,
+                                                    green = colors.GREEN,
+                                                    reset = colors.RESET,
+                                                    underline = colors.UNDERLINE,
+                                                        ));
         sys.exit(1)
     outfile = ".".join(input_filepath.split(".")[:-1])
 
@@ -701,7 +773,13 @@ if __name__ == "__main__":
     else:
         usage(prog);
 
-        print("[ERR]: Unknown subcommand \"%s\". Exiting!" % subc);
+        print("{red}[ERR]: Unknown subcommand {green}{underline}\"{subcommand}\"{reset}{red}. Exiting!{reset}".format(
+                                                                red = colors.RED,
+                                                                green = colors.GREEN,
+                                                                reset = colors.RESET,
+                                                                underline = colors.UNDERLINE,
+                                                                subcommand = subc
+                                                                    ));
         sys.exit(1);
 
     
