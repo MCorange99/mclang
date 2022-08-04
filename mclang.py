@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-from audioop import add
 import sys
 import subprocess
 import os
+import re
 
 MEMORY_SIZE = 640_000 # should be enough
+STR_SIZE = 640_000
 
 class colors:
     RESET      = '\33[0m'
@@ -55,25 +56,27 @@ def iota(reset=False):
     IOTA_COUNTER += 1
     return result
 
-OP_PUSH = iota(True);
-OP_PLUS = iota();
-OP_MINUS = iota();
-OP_EQUAL = iota();
-OP_IF = iota();
-OP_END = iota();
-OP_ELSE = iota();
-OP_DUMP = iota();
-OP_DUP = iota();
-OP_GT = iota();
-OP_LT = iota();
+OP_PUSH_INT = iota(True); # 0
+OP_PUSH_STR = iota()      # 1
+OP_PLUS = iota();         # 2
+OP_MINUS = iota();        # 3
+OP_EQUAL = iota();        # 4
+OP_IF = iota();           # 5
+OP_END = iota();          # 6
+OP_ELSE = iota();         # 7
+OP_PRINT = iota();        # 8
+OP_DUP = iota();          # 9
+OP_GT = iota();           # 10
+OP_LT = iota();           # 11
 OP_WHILE = iota();
 OP_DO = iota();
 OP_MEM = iota();
 OP_LOAD = iota();
 OP_STORE = iota();
+OP_SYSCALL0 = iota();
 OP_SYSCALL1 = iota();
 OP_SYSCALL2 = iota();
-OP_SYSCALL3 = iota();
+OP_SYSCALL3 = iota();     # 20
 OP_SYSCALL4 = iota();
 OP_SYSCALL5 = iota();
 OP_SYSCALL6 = iota();
@@ -85,23 +88,44 @@ OP_SHL=iota();
 OP_BOR=iota();
 OP_BAND=iota();
 OP_OVER=iota();
+OP_MOD=iota();
+OP_NE=iota();
+OP_LE=iota();
+OP_GE=iota();
+
 COUNT_OPS = iota();
 
 
 TOKEN_WORD = iota(True);
 TOKEN_INT = iota();
+TOKEN_STR = iota();
 COUNT_TOKENS = iota();
 
 
-def simulate_program(program, dump_mem=0):
+def simulate_program(program, debug=0):
     stack = []
-    mem = bytearray(MEMORY_SIZE)
+    mem = bytearray(STR_SIZE + MEMORY_SIZE)
+    str_size = 0
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 30, "Exhaustive handling of operations in simulation"
+        assert COUNT_OPS == 36, "Exhaustive handling of operations in simulation"
         op = program[ip]
-        if op['type'] == OP_PUSH:
+        if debug > 0:
+            print("start: " + str(op['type']))
+
+        if op['type'] == OP_PUSH_INT:
             stack.append(op['value'])
+            ip += 1
+        elif op['type'] == OP_PUSH_STR:
+            bs = bytes(op['value'], 'utf-8')
+            n = len(bs)
+            stack.append(n)
+            if 'addr' not in op:
+                op['addr'] = str_size
+                mem[str_size:str_size+n] = bs
+                str_size += n
+                assert str_size <= STR_SIZE, "String buffer overflow"
+            stack.append(op['addr'])
             ip += 1
         elif op['type'] == OP_PLUS:
             a = stack.pop()
@@ -151,7 +175,7 @@ def simulate_program(program, dump_mem=0):
         elif op['type'] == OP_END:
             assert len(op) >= 2, "`end` instruction does not have a reference to the next instruction to jump to. Please call crossreference_blocks() on the program before trying to simulate it"
             ip = op['jmp']
-        elif op['type'] == OP_DUMP:
+        elif op['type'] == OP_PRINT:
             a = stack.pop()
             print(a)
             ip += 1
@@ -187,6 +211,26 @@ def simulate_program(program, dump_mem=0):
             b = stack.pop()
             stack.append(int(a > b))
             ip += 1
+        elif op['type'] == OP_GE:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b >= a))
+            ip += 1
+        elif op['type'] == OP_LE:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b <= a))
+            ip += 1
+        elif op['type'] == OP_NE:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(b != a))
+            ip += 1
+        elif op['type'] == OP_MOD:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(b % a)
+            ip += 1
         elif op['type'] == OP_WHILE:
             ip += 1
         elif op['type'] == OP_DO:
@@ -197,7 +241,7 @@ def simulate_program(program, dump_mem=0):
             else:
                 ip += 1
         elif op['type'] == OP_MEM:
-            stack.append(0)
+            stack.append(STR_SIZE)
             ip += 1
         elif op['type'] == OP_LOAD:
             addr = stack.pop()
@@ -208,6 +252,13 @@ def simulate_program(program, dump_mem=0):
             value = stack.pop()
             addr = stack.pop()
             mem[addr] = value % 0xFF
+            ip += 1
+        elif op['type'] == OP_SYSCALL0:
+            syscall_number = stack.pop()
+            if syscall_number == 39:
+                stack.append(os.getpid())
+            else:
+                assert False, "unknown syscall number %d" % syscall_number
             ip += 1
         elif op['type'] == OP_SYSCALL1:
             assert False, "Not implemented"
@@ -229,6 +280,7 @@ def simulate_program(program, dump_mem=0):
                     print(s, end='', file=sys.stderr)
                 else:
                     assert False, "Unknown file descriptor %d" % arg1
+                stack.append(count)
             else:
                 assert False, "Unknown syscall number %d" % syscall_num
             ip += 1
@@ -247,55 +299,67 @@ def simulate_program(program, dump_mem=0):
             ip += 1
         else:
             assert False, "Unreachable"
-    if dump_mem > 0:
-        print(mem[:dump_mem])
+        if debug > 0:
+            print(mem[:debug])
+        if debug > 0:
+            print(stack)
+            print("end: " + str(op['type']))
 
 def compile_program(program, file_path):
+    str_arr = []
     print("[INFO]: Generating %s" % file_path)
     with open(file_path, "w") as out:
+        out.write("BITS 64\n")
         out.write("segment .text\n\n")
-        out.write("dump:\n")
-        out.write("    mov r9, -3689348814741910323\n")
-        out.write("    sub rsp, 40\n")
-        out.write("    mov BYTE [rsp+31], 10\n")
-        out.write("    lea rcx, [rsp+30]\n")
+        out.write("print:\n")
+        out.write("    mov     r9, -3689348814741910323\n")
+        out.write("    sub     rsp, 40\n")
+        out.write("    mov     BYTE [rsp+31], 10\n")
+        out.write("    lea     rcx, [rsp+30]\n")
         out.write(".L2:\n")
-        out.write("    mov rax, rdi\n")
-        out.write("    lea r8, [rsp+32]\n")
-        out.write("    mul r9\n")
-        out.write("    mov rax, rdi\n")
-        out.write("    sub r8, rcx\n")
-        out.write("    shr rdx, 3\n")
-        out.write("    lea rsi, [rdx+rdx*4]\n")
-        out.write("    add rsi, rsi\n")
-        out.write("    sub rax, rsi\n")
-        out.write("    add eax, 48\n")
-        out.write("    mov BYTE [rcx], al\n")
-        out.write("    mov rax, rdi\n")
-        out.write("    mov rdi, rdx\n")
-        out.write("    mov rdx, rcx\n")
-        out.write("    sub rcx, 1\n")
-        out.write("    cmp rax, 9\n")
-        out.write("    ja  .L2\n")
-        out.write("    lea rax, [rsp+32]\n")
-        out.write("    mov edi, 1\n")
-        out.write("    sub rdx, rax\n")
-        out.write("    xor eax, eax\n")
-        out.write("    lea rsi, [rsp+32+rdx]\n")
-        out.write("    mov rdx, r8\n")
-        out.write("    mov rax, 1\n")
+        out.write("    mov     rax, rdi\n")
+        out.write("    lea     r8, [rsp+32]\n")
+        out.write("    mul     r9\n")
+        out.write("    mov     rax, rdi\n")
+        out.write("    sub     r8, rcx\n")
+        out.write("    shr     rdx, 3\n")
+        out.write("    lea     rsi, [rdx+rdx*4]\n")
+        out.write("    add     rsi, rsi\n")
+        out.write("    sub     rax, rsi\n")
+        out.write("    add     eax, 48\n")
+        out.write("    mov     BYTE [rcx], al\n")
+        out.write("    mov     rax, rdi\n")
+        out.write("    mov     rdi, rdx\n")
+        out.write("    mov     rdx, rcx\n")
+        out.write("    sub     rcx, 1\n")
+        out.write("    cmp     rax, 9\n")
+        out.write("    ja      .L2\n")
+        out.write("    lea     rax, [rsp+32]\n")
+        out.write("    mov     edi, 1\n")
+        out.write("    sub     rdx, rax\n")
+        out.write("    xor     eax, eax\n")
+        out.write("    lea     rsi, [rsp+32+rdx]\n")
+        out.write("    mov     rdx, r8\n")
+        out.write("    mov     rax, 1\n")
         out.write("    syscall\n")
-        out.write("    add rsp, 40\n")
+        out.write("    add     rsp, 40\n")
         out.write("    ret\n")
         out.write("global _start\n")
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 30, "Exhaustive handling of ops in compilation"
+            assert COUNT_OPS == 36, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
-            if op['type'] == OP_PUSH:
-                out.write("    ;; -- push %d --\n" % op['value'])
-                out.write("    push %d\n" % op['value'])
+            if op['type'] == OP_PUSH_INT:
+                out.write("    ;; -- push int %d --\n" % op['value'])
+                out.write("    mov rax, %d\n" % op['value'])
+                out.write("    push rax\n")
+            elif op['type'] == OP_PUSH_STR:
+                out.write("    ;; -- push str--\n")
+                out.write("    mov rax, %d\n" % len(op['value']))
+                out.write("    push rax\n")
+                out.write("    push str_%d\n" % len(str_arr))
+                str_arr.append(op['value'])
             elif op['type'] == OP_PLUS:
                 out.write("    ;; -- plus --\n")
                 out.write("    pop rax\n")
@@ -332,10 +396,10 @@ def compile_program(program, file_path):
                 out.write("    pop rbx\n")
                 out.write("    and rbx, rax\n")
                 out.write("    push rbx\n")
-            elif op['type'] == OP_DUMP:
-                out.write("    ;; -- dump --\n")
+            elif op['type'] == OP_PRINT:
+                out.write("    ;; -- print --\n")
                 out.write("    pop rdi\n")
-                out.write("    call dump\n")
+                out.write("    call print\n")
             elif op['type'] == OP_EQUAL:
                 out.write("    ;; -- equal -- \n")
                 out.write("    mov rcx, 0\n");
@@ -422,17 +486,24 @@ def compile_program(program, file_path):
                 out.write("    pop rbx\n")
                 out.write("    pop rax\n")
                 out.write("    mov [rax], bl\n")
+            elif op['type'] == OP_SYSCALL0:
+                out.write("    ;; -- syscall0 --\n")
+                out.write("    pop rax\n")
+                out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL1:
                 out.write("    ;; -- syscall1 --\n")
                 out.write("    pop rax\n")
                 out.write("    pop rdi\n")
                 out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL2:
                 out.write("    ;; -- syscall2 -- \n")
                 out.write("    pop rax\n");
                 out.write("    pop rdi\n");
                 out.write("    pop rsi\n");
                 out.write("    syscall\n");
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL3:
                 out.write("    ;; -- syscall3 --\n")
                 out.write("    pop rax\n")
@@ -440,6 +511,7 @@ def compile_program(program, file_path):
                 out.write("    pop rsi\n")
                 out.write("    pop rdx\n")
                 out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL4:
                 out.write("    ;; -- syscall4 --\n")
                 out.write("    pop rax\n")
@@ -448,6 +520,7 @@ def compile_program(program, file_path):
                 out.write("    pop rdx\n")
                 out.write("    pop r10\n")
                 out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL5:
                 out.write("    ;; -- syscall5 --\n")
                 out.write("    pop rax\n")
@@ -457,6 +530,7 @@ def compile_program(program, file_path):
                 out.write("    pop r10\n")
                 out.write("    pop r8\n")
                 out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_SYSCALL6:
                 out.write("    ;; -- syscall6 --\n")
                 out.write("    pop rax\n")
@@ -467,6 +541,7 @@ def compile_program(program, file_path):
                 out.write("    pop r8\n")
                 out.write("    pop r9\n")
                 out.write("    syscall\n")
+                out.write("    push rax\n")
             elif op['type'] == OP_OVER:
                 out.write("    ;; -- over --\n")
                 out.write("    pop rax\n")
@@ -474,34 +549,81 @@ def compile_program(program, file_path):
                 out.write("    push rbx\n")
                 out.write("    push rax\n")
                 out.write("    push rbx\n")
+            elif op['type'] == OP_MOD:
+                out.write("    ;; -- mod --\n")
+                out.write("    xor rdx, rdx\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    div rbx\n")
+                out.write("    push rdx\n");
+            elif op['type'] == OP_GE:
+                out.write("    ;; -- gt --\n")
+                out.write("    mov rcx, 0\n");
+                out.write("    mov rdx, 1\n");
+                out.write("    pop rbx\n");
+                out.write("    pop rax\n");
+                out.write("    cmp rax, rbx\n");
+                out.write("    cmovge rcx, rdx\n");
+                out.write("    push rcx\n")
+            elif op['type'] == OP_LE:
+                out.write("    ;; -- gt --\n")
+                out.write("    mov rcx, 0\n");
+                out.write("    mov rdx, 1\n");
+                out.write("    pop rbx\n");
+                out.write("    pop rax\n");
+                out.write("    cmp rax, rbx\n");
+                out.write("    cmovle rcx, rdx\n");
+                out.write("    push rcx\n")
+            elif op['type'] == OP_NE:
+                out.write("    ;; -- ne --\n")
+                out.write("    mov rcx, 0\n")
+                out.write("    mov rdx, 1\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    cmp rax, rbx\n")
+                out.write("    cmovne rcx, rdx\n")
+                out.write("    push rcx\n")
             else:
+                print(op['type'])
                 assert False, "Unreachable"
         out.write("addr_%d:\n" % len(program))
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
 
+        out.write("segment .data\n")
+
+        for index, s in enumerate(str_arr):
+            out.write("; %s\n" % s.encode("unicode_escape").decode("utf-8"))
+            out.write("str_%d: db %s" % (index, ",".join(map(hex, list(bytes(s, "utf-8")))) + "\n\n"))
+            
         out.write("segment .bss\n")
         out.write("mem: resb %d\n" % MEMORY_SIZE)
+
 
 
 
 BUILT_IN_WORDS = {
                     "+":OP_PLUS,
                     "-":OP_MINUS,
-                    "dump":OP_DUMP,
-                    "=":OP_DUMP,
+                    "mod":OP_MOD,
+                    "print":OP_PRINT,
+                    "=":OP_EQUAL,
                     "if":OP_IF,
                     "end":OP_END,
                     "else":OP_ELSE,
                     "dup":OP_DUP,
                     ">":OP_GT,
                     "<":OP_LT,
+                    ">=":OP_GE,
+                    "<=":OP_LE,
+                    "!=":OP_NE,
                     "while":OP_WHILE,
                     "do":OP_DO,
                     "mem":OP_MEM,
                     "store":OP_STORE,
                     "load":OP_LOAD,
+                    "syscall0":OP_SYSCALL0,
                     "syscall1":OP_SYSCALL1,
                     "syscall2":OP_SYSCALL2,
                     "syscall3":OP_SYSCALL3,
@@ -516,17 +638,17 @@ BUILT_IN_WORDS = {
                     'swap':OP_SWAP,
                     'drop':OP_DROP,
                     'over':OP_OVER
-                }
-assert COUNT_OPS == len(BUILT_IN_WORDS) + 1, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
+                }                        #push_int and push_str
+assert COUNT_OPS == len(BUILT_IN_WORDS) + 2, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
 
 
         
 def parse_token_as_op(token):
-    assert COUNT_TOKENS == 2, "{red}Exaustive handling of tokens in parse_token_as_op{reset}".format(
+    assert COUNT_TOKENS == 3, "{red}Exaustive handling of tokens in parse_token_as_op{reset}".format(
                                                                         red = colors.RED,
                                                                         green = colors.GREEN,
                                                                         reset = colors.RESET,
-                                                                        underline = colors.URL
+                                                                        underline = colors.UNDERLINE
                                                                             )
     if token['type'] == TOKEN_WORD:
         if token['value'] in BUILT_IN_WORDS:
@@ -543,9 +665,10 @@ def parse_token_as_op(token):
                                                                         underline = colors.UNDERLINE
                                                                             ))
             sys.exit(1)
-
+    elif token['type'] == TOKEN_STR:
+        return {'type': OP_PUSH_STR, 'value': token['value'], 'loc': token['loc']}
     elif token['type'] == TOKEN_INT:
-        return {'type': OP_PUSH, 'value': token['value'], 'loc': token['loc']}
+        return {'type': OP_PUSH_INT, 'value': token['value'], 'loc': token['loc']}
     else:
         assert False, "{red}Unreachable{reset}".format(
                                         red = colors.RED,
@@ -558,7 +681,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 30, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert COUNT_OPS == 36, "Exhaustive handling of ops in crossreference_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op['type'] == OP_IF:
             stack.append(ip)
         elif op['type'] == OP_ELSE:
@@ -605,9 +728,23 @@ def lex_word(text):
 def lex_line(line):
     col = find_col(line, 0, lambda x: not x.isspace())
     while col < len(line):
-        col_end = find_col(line, col, lambda x: x.isspace())
-        yield (col, lex_word(line[col:col_end]))
-        col = find_col(line, col_end, lambda x: not x.isspace())
+        col_end = None
+        if line[col] == '"':
+            col_end = find_col(line, col+1, lambda x: x == '"')
+            assert line[col_end] == '"'
+            token_text = line[col+1:col_end]
+            yield (col,(TOKEN_STR, bytes(token_text, "utf-8").decode("unicode_escape")))
+            col = find_col(line, col_end+1, lambda x: not x.isspace())
+        else:
+            col_end = find_col(line, col, lambda x: x.isspace())
+            token_text = line[col:col_end]
+            try:
+                yield (col, (TOKEN_INT, int(token_text)))
+            except ValueError:
+                # yield (col, (TOKEN_WORD, bytes(token_text, "utf-8").decode("unicode_escape")))
+                yield (col, (TOKEN_WORD, token_text))
+            col = find_col(line, col_end, lambda x: not x.isspace())
+
 
 def lex_file(file_path):
     with open(file_path, "r") as f:
@@ -659,12 +796,7 @@ def run_compiled_prog(outfile):
                                                                 code=exit_code
                                                                     ))
 
-global outfile
-outfile = "output"
-b_run = False
-b_outfile = False
-b_remove = False
-i_dumpmem = 0
+
 
 def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir = "build/asm"):
     basepath = ""
@@ -703,20 +835,23 @@ if __name__ == "__main__":
 
     subc, *argv = argv
     input_filepath = ""
-
+    global outfile
+    outfile = "output"
+    b_run = False
+    b_outfile = False
+    b_remove = False
+    i_dumpmem = 0
     for flag in argv:
+        if b_outfile == True:
+            b_outfile == False
+            
+            outfile = flag
+            continue
+        if i_dumpmem == -1:
+            i_dumpmem = int(flag)
+            continue
+
         if flag.startswith("-"):
-            if b_outfile == True:
-                b_outfile == False
-                
-                outfile = flag
-                continue
-
-            if i_dumpmem == -1:
-                
-                i_dumpmem = flag
-                continue
-
             if flag == "-h" or flag == "--help":
                 usage(prog);
                 sys.exit(1);

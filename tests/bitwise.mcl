@@ -1,0 +1,25 @@
+// -*- mode: opascal -*-
+// Prepare the separation line
+0 while dup 30 < do
+  dup mem + 45 store
+  1 +
+end
+mem + 10 store
+
+// shift left
+1  3 << print
+
+31 mem 1 1 syscall3
+
+// shift right
+32 3 >> print
+
+31 mem 1 1 syscall3
+
+// bit or
+1 2 | print
+
+31 mem 1 1 syscall3
+
+// bit and
+1 2 & print
