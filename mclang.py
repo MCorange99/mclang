@@ -502,7 +502,8 @@ def parse_token_as_op(token):
         if token['value'] in BUILT_IN_WORDS:
             return {'type': BUILT_IN_WORDS[token['value']], 'loc': token['loc']}
         else:
-            print("[ERR]: %s:%d:%d: %s" % (token['loc'] + token['value']))
+            print("[ERR]: %s:%d:%d: %s" % (token['loc'] + (token['value'],)))
+            sys.exit(1)
 
     elif token['type'] == TOKEN_INT:
         return {'type': OP_PUSH, 'value': token['value'], 'loc': token['loc']}
