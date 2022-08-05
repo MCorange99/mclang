@@ -1,1 +1,7 @@
-"Henlo world\n" 1 1 syscall3
+
+macro write // asdasd
+    1 1 syscall3
+end
+
+
+"Henlo world\n" write

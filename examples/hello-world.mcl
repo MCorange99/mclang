@@ -1,18 +1,4 @@
-mem 0 + 104 store // h
-mem 1 + 101 store // e
-mem 2 + 110 store // n
-mem 3 + 108 store // l
-mem 4 + 111 store // o
-mem 5 + 32 store  // [whitespace]
-mem 6 + 119 store // w
-mem 7 + 111 store // o
-mem 8 + 114 store // r
-mem 9 + 108 store // l
-mem 10 + 100 store // d
-mem 11 + 33 store  // !
-
-12   // str len
-mem  // buf
-1    // fd (stdout)
-1    // syscall num
-syscall3
+macro printf
+    1 1 syscall3
+end
+"Henlo, World!\n" printfw
