@@ -1,4 +1,1 @@
-
-include "std.mcl"
-
-"Henlo world\n" puts
+10 2 / print

@@ -83,6 +83,8 @@ class OpType(Enum):
     # arithmatic ops
     MINUS = auto();
     PLUS = auto();
+    MULT = auto();
+    DIV = auto();
 
     # comparison ops
     EQUAL = auto();
@@ -144,7 +146,7 @@ def simulate_little_endian_linux(program: Program, debug: int):
     str_size = 0
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 38, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 40, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
             assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -171,6 +173,16 @@ def simulate_little_endian_linux(program: Program, debug: int):
             a = stack.pop()
             b = stack.pop()
             stack.append(b - a)
+            ip += 1
+        elif op.typ == OpType.MULT:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(b * a)
+            ip += 1
+        elif op.typ == OpType.DIV:
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(b / a)
             ip += 1
         elif op.typ == OpType.MOD:
             a = stack.pop()
@@ -386,7 +398,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert len(OpType) == 38, "Exhaustive handling of ops in compilation"
+            assert len(OpType) == 40, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -412,8 +424,21 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 out.write("    ;; -- minus --\n")
                 out.write("    pop rax\n")
                 out.write("    pop rbx\n")
-                out.write("    sub rbx, rax\n")
+                out.write("    sub rbx\n")
                 out.write("    push rbx\n")
+            elif op.typ == OpType.MULT:
+                out.write("    ;; -- mult --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    mul rbx\n")
+                out.write("    push rax\n")
+            elif op.typ == OpType.DIV:
+                out.write("    ;; -- div --\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    mov rdx, 0\n")
+                out.write("    div rbx\n")
+                out.write("    push rax\n")
             elif op.typ == OpType.SHR:
                 out.write("    ;; -- shr --\n")
                 out.write("    pop rcx\n")
@@ -649,6 +674,8 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
 BUILTIN_WORDS = {
                     "+":          OpType.PLUS,
                     "-":          OpType.MINUS,
+                    "/":          OpType.DIV,
+                    "*":          OpType.MULT,
                     "mod":        OpType.MOD,
                     "print":      OpType.PRINT,
                     "=":          OpType.EQUAL,
@@ -731,7 +758,7 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
         else:
             assert False, 'unreachable'
 
-        assert len(OpType) == 38, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert len(OpType) == 40, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op.typ == OpType.IF:
             program.append(op)
             stack.append(ip)
