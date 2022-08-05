@@ -1,42 +1,40 @@
-// -*- mode: opascal -*-
-// Prepare the separation line
-0 while dup 30 < do
-  dup mem + 45 store
-  1 +
-end
-mem + 10 store
+include "std.mcl"
 
 // Equals
 69 420  = print
 69 69   = print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
+
 
 // Greater
 420 69  > print
 69 420  > print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
+
 
 // Less
 420 69  < print
 69 420  < print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
 
 // Greater Equals
 420 69 >= print
 69 420 >= print
 69 69  >= print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
+
 
 // Less Equals
 420 69 <= print
 69 420 <= print
 69 69  <= print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
+
 
 // Not Equals
 69 69  != print

@@ -1,14 +1,32 @@
 # MClang
 
+## Examples
+
+### [Hello world](./examples/hello-world.mcl)
+
+```forth
+include "std.mcl"
+
+"Henlo, World!" puts
+```
+
+### Rule 110
+
+A simplified version of game of life that proves that a language is turing complete  
+
+Its too big to fit in the readme but you can check it out [here](./examples/rule-110.mcl)
+
 ## if else
 
 In MClang:
 
 ```forth
+include "std.mcl"
+
 12 10 > if
-    1 dump
-else
-    0 dump
+    "True\n" puts
+else 
+    "False\n" puts
 end
 ```
 
@@ -16,9 +34,9 @@ In C:
 
 ```c
 if (12 > 10){
-    printf(1);
+    printf("True\n");
 } else {
-    printf(0);
+    printf("False\n");
 }
 ```  
   
@@ -29,7 +47,7 @@ In MClang:
 ```forth
 10 
 while dup 0 > do
-    dup dump
+    dup print // print only prints the last thing on the stack so you cant print whole strings
     1 -
 end
 ```
@@ -65,7 +83,7 @@ Explanation:
 10            // push 10 on stack
 while dup     // duplicate it with dup so it doesnt dissapear from stack 
 0 > do        // check if its bigger than 0
-    dup dump  // duplicate it and print it with dump
+    dup print  // duplicate it and print it with dump
     1 -       // decrement it with -
 end
 ```

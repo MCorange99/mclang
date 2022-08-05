@@ -1,4 +1,3 @@
-macro printf
-    1 1 syscall3
-end
-"Henlo, World!\n" printfw
+include "std.mcl"
+
+"Henlo, World!\n" puts

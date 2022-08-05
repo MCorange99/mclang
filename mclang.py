@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-from re import T
 import sys
 import subprocess
 import os
 from typing import *
 from enum import Enum, auto
 from dataclasses import dataclass
+
+builtin_lib_path = "./include"
 
 MEMORY_SIZE = 640_000 # should be enough
 STR_SIZE = 640_000
@@ -97,10 +98,14 @@ class OpType(Enum):
     DO = auto();
     END = auto();
     WHILE = auto();
-    MACRO = auto();
     
     # other
     PRINT = auto();
+
+    # prerocessed ops
+    MACRO = auto();
+    INCLUDE = auto();
+
 
 
 @dataclass
@@ -139,7 +144,7 @@ def simulate_little_endian_linux(program: Program, debug: int):
     str_size = 0
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 37, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 38, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
             assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -381,7 +386,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert len(OpType) == 37, "Exhaustive handling of ops in compilation"
+            assert len(OpType) == 38, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -676,7 +681,8 @@ BUILTIN_WORDS = {
                     'drop':       OpType.DROP,
                     'over':       OpType.OVER,
                     'swap':       OpType.SWAP,
-                    'macro':      OpType.MACRO
+                    'macro':      OpType.MACRO,
+                    'include':      OpType.INCLUDE
                 }
                               #           \/ push_int and push_str
 assert len(OpType) == len(BUILTIN_WORDS) + 2, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
@@ -725,7 +731,7 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
         else:
             assert False, 'unreachable'
 
-        assert len(OpType) == 37, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert len(OpType) == 38, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op.typ == OpType.IF:
             program.append(op)
             stack.append(ip)
@@ -763,6 +769,36 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
             program[ip].jmp = while_ip
             stack.append(ip)
             ip += 1
+
+        elif op.typ == OpType.INCLUDE:
+            if len(rtokens) == 0:
+                print('%s:%d:%d: ERROR: Expected include file path or a built in library' % op.loc)
+                sys.exit(1)
+
+            token = rtokens.pop()
+            if token.typ != TokenType.STR:
+                print('%s:%d:%d: ERROR: Expected include file path or a built in library path to be a `%s`, but found `%s`' % (op.loc + (
+                                                                                                                tokentype_human_readable_name(TokenType.STR),
+                                                                                                                tokentype_human_readable_name(token.typ))))
+                sys.exit(1)
+            path = token.value
+
+            # builtin_lib_path = "./include"
+
+            if "/" in path:
+                path = path
+            else:
+                path = os.path.join(builtin_lib_path, path)
+
+            if not os.path.exists(path):
+                print('%s:%d:%d: ERROR: Include file `%s` does not exist' % (op.loc + (path,)))
+                sys.exit(1)
+
+
+            rtokens += reversed(lex_file(path))
+
+
+
         elif op.typ == OpType.MACRO:
             if len(rtokens) == 0:
                 print("%s:%d:%d: ERROR: expected macro name but found nothing" % op.loc)

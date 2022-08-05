@@ -1,3 +1,5 @@
+include "std.mcl"
+
 // -*- mode: opascal -*-
 // write "abc" into the memory
 mem 0 + 97 store
@@ -6,7 +8,7 @@ mem 2 + 99 store
 mem 3 + 10 store
 // 0 print
 // print "abc" to stdout
-4 mem 1 1 syscall3 print
+4 mem puts
 // increament each character by 1 making it "bcd"
 mem 0 + dup load 1 + store
 mem 1 + dup load 1 + store
@@ -14,4 +16,4 @@ mem 2 + dup load 1 + store
 
 // 2 print
 // print "bcd" to stdout
-4 mem 1 1 syscall3 print
+4 mem puts

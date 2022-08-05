@@ -1,7 +1,4 @@
 
-macro write // asdasd
-    1 1 syscall3
-end
+include "std.mcl"
 
-
-"Henlo world\n" write
+"Henlo world\n" puts

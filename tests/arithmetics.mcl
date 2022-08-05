@@ -1,5 +1,8 @@
 // -*- mode: opascal -*-
 // Prepare the separation line
+
+include "std.mcl"
+
 0 while dup 30 < do
   dup mem + 45 store
   1 +
@@ -9,12 +12,12 @@ mem + 10 store
 // Add
 34 35   + print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
 
 // Subtract
 500 80  - print
 
-31 mem 1 1 syscall3
+"------------------------------\n" puts
 
 // Modulo
 5 100 mod print
