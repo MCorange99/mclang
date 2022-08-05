@@ -108,6 +108,9 @@ class OpType(Enum):
     MACRO = auto();
     INCLUDE = auto();
 
+    # bools
+    TRUE = auto();
+    FALSE = auto();
 
 
 @dataclass
@@ -125,6 +128,7 @@ class TokenType(Enum):
     WORD = auto();
     INT = auto();
     STR = auto();
+    CHAR = auto();
 
 @dataclass
 class Token:
@@ -146,7 +150,7 @@ def simulate_little_endian_linux(program: Program, debug: int):
     str_size = 0
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 40, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 42, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
             assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -173,6 +177,12 @@ def simulate_little_endian_linux(program: Program, debug: int):
             a = stack.pop()
             b = stack.pop()
             stack.append(b - a)
+            ip += 1
+        elif op.typ == OpType.TRUE:
+            stack.append(1)
+            ip += 1
+        elif op.typ == OpType.FALSE:
+            stack.append(0)
             ip += 1
         elif op.typ == OpType.MULT:
             a = stack.pop()
@@ -398,7 +408,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert len(OpType) == 40, "Exhaustive handling of ops in compilation"
+            assert len(OpType) == 42, "Exhaustive handling of ops in compilation"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.value, int), "This could be a bug in the compilation step"
@@ -424,7 +434,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 out.write("    ;; -- minus --\n")
                 out.write("    pop rax\n")
                 out.write("    pop rbx\n")
-                out.write("    sub rbx\n")
+                out.write("    sub rbx, rax\n")
                 out.write("    push rbx\n")
             elif op.typ == OpType.MULT:
                 out.write("    ;; -- mult --\n")
@@ -650,6 +660,15 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 out.write("    cmp rax, rbx\n")
                 out.write("    cmovne rcx, rdx\n")
                 out.write("    push rcx\n")
+            elif op.typ == OpType.TRUE:
+                out.write("    ;; -- true --\n")
+                out.write("    mov rcx, 1\n")
+                out.write("    push rcx\n")
+            elif op.typ == OpType.FALSE:
+                out.write("    ;; -- false --\n")
+                out.write("    mov rcx, 0\n")
+                out.write("    push rcx\n")
+
             else:
                 print(op.typ)
                 assert False, "Unreachable"
@@ -709,7 +728,9 @@ BUILTIN_WORDS = {
                     'over':       OpType.OVER,
                     'swap':       OpType.SWAP,
                     'macro':      OpType.MACRO,
-                    'include':      OpType.INCLUDE
+                    'include':    OpType.INCLUDE,
+                    'true':    OpType.TRUE,
+                    'false':    OpType.FALSE
                 }
                               #           \/ push_int and push_str
 assert len(OpType) == len(BUILTIN_WORDS) + 2, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
@@ -727,6 +748,8 @@ def tokentype_human_readable_name(typ: TokenType) -> str:
         return "int"
     elif typ == TokenType.STR:
         return "string"
+    elif typ == TokenType.CHAR:
+        return "char"
     else:
         return "UNKNOWN"
 
@@ -740,7 +763,7 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
         # TODO: some sort of safety mechanism for recursive macros
         token = rtokens.pop()
         op = None
-        assert len(TokenType) == 3, "Exhaustive token handling in compile_tokens_to_program"
+        assert len(TokenType) == 4, "Exhaustive token handling in compile_tokens_to_program"
         if token.typ == TokenType.WORD:
             assert isinstance(token.value, str), "This could be a bug in the lexer"
             if token.value in BUILTIN_WORDS:
@@ -755,10 +778,12 @@ def compile_tokens_to_program(tokens: List[Token]) -> Program:
             op = Op(typ=OpType.PUSH_INT, value=token.value, loc=token.loc)
         elif token.typ == TokenType.STR:
             op = Op(typ=OpType.PUSH_STR, value=token.value, loc=token.loc)
+        elif token.typ == TokenType.CHAR:
+            op = Op(typ=OpType.PUSH_INT, value=ord(token.value), loc=token.loc)
         else:
             assert False, 'unreachable'
 
-        assert len(OpType) == 40, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
+        assert len(OpType) == 42, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
         if op.typ == OpType.IF:
             program.append(op)
             stack.append(ip)
@@ -886,6 +911,19 @@ def lex_line(file_path: str, row: int, line: str) -> Generator[Token, None, None
                 exit(1)
             text_of_token = line[col+1:col_end]
             yield Token(TokenType.STR, loc, unescape_string(text_of_token))
+            col = find_col(line, col_end+1, lambda x: not x.isspace())
+        elif line[col] == "'":
+            col_end = find_col(line, col+1, lambda x: x == "'")
+            if col_end >= len(line) or line[col_end] != "'":
+                print("%s:%d:%d: ERROR: unclosed char literal" % loc)
+                exit(1)
+            text_of_token = line[col+1:col_end]
+            if len(text_of_token) != 1 and ( not text_of_token.startswith("\\") and len(text_of_token) == 2):
+                print("%s:%d:%d: ERROR: char literals can only have 1 character but found %d ('%s')" % (loc + (len(text_of_token),text_of_token)))
+                exit(1)
+
+
+            yield Token(TokenType.CHAR, loc, unescape_string(text_of_token))
             col = find_col(line, col_end+1, lambda x: not x.isspace())
         else:
             col_end = find_col(line, col, lambda x: x.isspace())
