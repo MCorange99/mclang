@@ -3,25 +3,23 @@
 // ^
 // mem
 
-macro write 
-    1 1 syscall3 drop
-end
+include "std.mcl"
 
-macro BOARD_SIZE 1000 end
+macro BOARD_SIZE 100 end
 
-mem 98 + 1 store
+mem BOARD_SIZE 2 - + true store
 
 0 while dup BOARD_SIZE 2 - < do
    0 while dup BOARD_SIZE < do
       dup mem + load if
-         dup mem + BOARD_SIZE + 42 store
+         dup mem + BOARD_SIZE + '#' store
       else
-         dup mem + BOARD_SIZE + 32 store
+         dup mem + BOARD_SIZE + ' ' store
       end
       1 +
    end
-   mem + BOARD_SIZE + 10 store
-   101 mem BOARD_SIZE + write
+   mem + BOARD_SIZE + '\n' store
+   101 mem BOARD_SIZE + puts
 
    // pattern
    mem     load 1 <<
