@@ -1,15 +1,47 @@
 
 include "linux.mcl"
 
-macro STDIN 0 end
-macro STDOUT 1 end
-macro STDERR 2 end
+macro STD_IN 0 end
+macro STD_OUT 1 end
+macro STD_ERR 2 end
 
 
 macro puts
-    STDOUT SYS_write syscall3 drop
+    STD_OUT SYS_write syscall3 drop
 end
 
 macro eputs
-    STDERR SYS_write syscall3 drop
+    STD_ERR SYS_write syscall3 drop
+end
+
+macro exit
+    SYS_exit syscall1
+end
+
+// macro write
+//     SYS_write syscall3 drop
+// end
+
+macro 2dup
+    over over
+end
+macro 2drop
+    drop drop
+end
+
+macro / divmod drop end
+macro % divmod swap drop end
+macro mod % end
+macro div / end
+macro ++ 1 + end
+macro -- 1 - end
+
+macro inc64
+    dup load64 1 + store64
+end
+
+macro strlen
+    0 swap while dup load 0 != do
+        1 + swap 1 + swap
+    end drop 
 end

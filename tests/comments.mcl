@@ -1,0 +1,9 @@
+
+include "std.mcl"
+
+//comment one
+// comment two
+//////nonsense comment
+
+// string literal with `//` should be printed
+"Hello, // World\n" puts // this comment should be allowed 

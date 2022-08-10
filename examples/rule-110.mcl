@@ -7,7 +7,7 @@ include "std.mcl"
 
 macro BOARD_SIZE 100 end
 
-mem BOARD_SIZE 2 - + true store
+mem BOARD_SIZE 2 - + 1 store
 
 0 while dup BOARD_SIZE 2 - < do
    0 while dup BOARD_SIZE < do

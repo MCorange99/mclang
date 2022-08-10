@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 79
+./tests/include-file-not-found-error.mcl:1:9: ERROR: file `aids.mcl` not found
+

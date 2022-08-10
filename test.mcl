@@ -1,5 +1,3 @@
 include "std.mcl"
 
-10 2 / print
-
-'F' print
+""

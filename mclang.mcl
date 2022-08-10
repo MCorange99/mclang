@@ -1,0 +1,23 @@
+include "std.mcl"
+
+argv argc
+while dup 0 > do
+    over load64 dup strlen swap puts
+    "\n" puts
+    1 -
+    swap 
+    8 +
+    swap
+end
+
+0 exit
+
+// while dup 0 > do
+//     swap
+//     dup
+//     strlen
+//     swap
+//     puts
+//     "\n" puts
+//     1 -
+// end

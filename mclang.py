@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
+from copy import copy
 import sys
 import subprocess
 import os
 from typing import *
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from dataclasses import dataclass
+from xml.etree.ElementInclude import include
 
-builtin_lib_path = "./include"
+builtin_lib_path = ["./include"]
 
 MEMORY_SIZE = 640_000 # should be enough
 STR_SIZE = 640_000
+ARGV_SIZE = 640_000
+MAX_MACRO_EXPANSION = 1000
+NULL_PTR_PADDING = 1
 
 class colors:
     RESET      = '\33[0m'
@@ -47,52 +52,12 @@ class colors:
     BEIGE2     = '\33[96m'
     WHITE2     = '\33[97m'
 
+def eprint(str):
+    print(str, file=sys.stderr)
+
 Loc = Tuple[str, int, int]
 
-class OpType(Enum):
-    #syscalls
-    SYSCALL0 = auto();
-    SYSCALL1 = auto();
-    SYSCALL2 = auto();
-    SYSCALL3 = auto();
-    SYSCALL4 = auto();
-    SYSCALL5 = auto();
-    SYSCALL6 = auto();
-    
-    # memory ops
-    MEM = auto();
-    STORE = auto();
-    LOAD = auto();
-    
-    # stack modificating ops
-    PUSH_STR = auto();
-    PUSH_INT = auto();
-    DUP = auto();
-    DUP2 = auto();
-    SWAP = auto();
-    DROP = auto();
-    OVER = auto();
-
-    # bitwise ops
-    SHR = auto();
-    SHL = auto();
-    BOR = auto();
-    BAND = auto();
-    MOD = auto();
-    
-    # arithmatic ops
-    MINUS = auto();
-    PLUS = auto();
-    MULT = auto();
-    DIV = auto();
-
-    # comparison ops
-    EQUAL = auto();
-    LT = auto();
-    GT = auto();
-    NE = auto();
-    LE = auto();
-    GE = auto();
+class Keyword(Enum):
 
     # Ops that form blocks
     IF = auto();
@@ -100,27 +65,72 @@ class OpType(Enum):
     DO = auto();
     END = auto();
     WHILE = auto();
-    
-    # other
-    PRINT = auto();
-
-    # prerocessed ops
     MACRO = auto();
+
+    #other
     INCLUDE = auto();
 
-    # bools
-    TRUE = auto();
-    FALSE = auto();
+class Intrinsic(Enum):
+    # arithmatices
+    PLUS=auto()
+    MINUS=auto()
+    MUL=auto()
+    DIVMOD=auto()
+    EQ=auto()
+    GT=auto()
+    LT=auto()
+    GE=auto()
+    LE=auto()
+    NE=auto()
+    SHR=auto()
+    SHL=auto()
+    BOR=auto()
+    BAND=auto()
+    PRINT=auto()
 
+    # stack ops
+    DUP=auto()
+    SWAP=auto()
+    DROP=auto()
+    OVER=auto()
+
+    # memory
+    MEM=auto()
+    LOAD=auto()
+    STORE=auto()
+    LOAD64=auto()
+    STORE64=auto()
+
+    # syscalls
+    SYSCALL0=auto()
+    SYSCALL1=auto()
+    SYSCALL2=auto()
+    SYSCALL3=auto()
+    SYSCALL4=auto()
+    SYSCALL5=auto()
+    SYSCALL6=auto()
+
+    # other
+    ARGC=auto()
+    ARGV=auto()
+
+class OpType(Enum):
+    PUSH_INT=auto()
+    PUSH_STR=auto()
+    INTRINSIC=auto()
+    IF=auto()
+    END=auto()
+    ELSE=auto()
+    WHILE=auto()
+    DO=auto()
+
+OpAddr = int
 
 @dataclass
 class Op:
     typ: OpType
     loc: Loc
-    # Exists only for PUSH_INT and PUSH_STR
-    value: Optional [Union[int, int]] = None
-    # Exists only for OPS with blocks
-    jmp: Optional [int] = None
+    operand: Optional[Union[int, str, Intrinsic, OpAddr]] = None
 
 Program = List[Op]
 
@@ -129,233 +139,284 @@ class TokenType(Enum):
     INT = auto();
     STR = auto();
     CHAR = auto();
+    KEYWORD = auto();
 
 @dataclass
 class Token:
     typ: TokenType
     loc: Loc
-    value: Union[int, int]
+    value: Union[int, str, Keyword]
+    expanded: int = 0
 
-def run_cmd(cmd):
-    print("[CMD]: %s" % ' '.join(cmd));
+
+def run_cmd(cmd, silent):
+    if silent != True:
+        print("[CMD]: %s" % ' '.join(cmd));
     subprocess.call(cmd);
 
 
 
 
-def simulate_little_endian_linux(program: Program, debug: int):
+def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
     stack: List[int] = []
-    mem = bytearray(STR_SIZE + MEMORY_SIZE)
-    str_offsets = {}
+    mem = bytearray(NULL_PTR_PADDING + STR_SIZE + ARGV_SIZE + MEMORY_SIZE)
+
+    str_buf_ptr = NULL_PTR_PADDING
+    str_ptrs = {}
     str_size = 0
+    
+    argv_buf_ptr = NULL_PTR_PADDING + STR_SIZE
+    argc = 0
+
+    mem_buf_ptr = NULL_PTR_PADDING + STR_SIZE + ARGV_SIZE
+
+    fds = {
+        0: sys.stdin.buffer,
+        1: sys.stdout.buffer,
+        2: sys.stderr.buffer
+    }
+
+    # argv simulation implementation
+    stack.append(0)
+    for arg in argv:
+        value = arg.encode("utf-8")
+        n = len(value)
+        arg_ptr = str_buf_ptr + str_size
+        mem[arg_ptr:arg_ptr+n] = value
+        mem[arg_ptr+n] = 0
+        stack.append(str_size)
+        str_size += n + 1
+        assert str_size <= STR_SIZE, "String buffer overflow"
+
+        argv_ptr = argv_buf_ptr+argc*8
+        mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder="little")
+        argc+=1
+        assert argc*8 <= ARGV_SIZE, "Argc buffer overflow"
+    # stack.append(len(argv))
+
     ip = 0
     while ip < len(program):
-        assert len(OpType) == 42, "Exhaustive op handling in simulate_little_endian_linux"
+        assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux"
         op = program[ip]
         if op.typ == OpType.PUSH_INT:
-            assert isinstance(op.value, int), "This could be a bug in the compilation step"
-            stack.append(op.value)
+            assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+            stack.append(op.operand)
             ip += 1
         elif op.typ == OpType.PUSH_STR:
-            assert isinstance(op.value, str), "This could be a bug in the compilation step"
-            value = op.value.encode('utf-8')
+            assert isinstance(op.operand, str), "This could be a bug in the compilation step"
+            value = op.operand.encode('utf-8')
             n = len(value)
             stack.append(n)
-            if ip not in str_offsets:
-                str_offsets[ip] = str_size
-                mem[str_size:str_size+n] = value
+            if ip not in str_ptrs:
+                str_ptr = str_buf_ptr+str_size
+                str_ptrs[ip] = str_ptr
+                mem[str_ptr:str_ptr+n] = value
                 str_size += n
                 assert str_size <= STR_SIZE, "String buffer overflow"
-            stack.append(str_offsets[ip])
-            ip += 1
-        elif op.typ == OpType.PLUS:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(a + b)
-            ip += 1
-        elif op.typ == OpType.MINUS:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(b - a)
-            ip += 1
-        elif op.typ == OpType.TRUE:
-            stack.append(1)
-            ip += 1
-        elif op.typ == OpType.FALSE:
-            stack.append(0)
-            ip += 1
-        elif op.typ == OpType.MULT:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(b * a)
-            ip += 1
-        elif op.typ == OpType.DIV:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(b / a)
-            ip += 1
-        elif op.typ == OpType.MOD:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(b % a)
-            ip += 1
-        elif op.typ == OpType.EQUAL:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(a == b))
-            ip += 1
-        elif op.typ == OpType.GT:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b > a))
-            ip += 1
-        elif op.typ == OpType.LT:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b < a))
-            ip += 1
-        elif op.typ == OpType.GE:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b >= a))
-            ip += 1
-        elif op.typ == OpType.LE:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b <= a))
-            ip += 1
-        elif op.typ == OpType.NE:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b != a))
-            ip += 1
-        elif op.typ == OpType.SHR:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b >> a))
-            ip += 1
-        elif op.typ == OpType.SHL:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(b << a))
-            ip += 1
-        elif op.typ == OpType.BOR:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(a | b))
-            ip += 1
-        elif op.typ == OpType.BAND:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(int(a & b))
+            stack.append(str_ptrs[ip])
             ip += 1
         elif op.typ == OpType.IF:
             a = stack.pop()
             if a == 0:
-                assert op.jmp is not None, "This could be a bug in the compilation step"
-                ip = op.jmp
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                ip = op.operand
             else:
                 ip += 1
         elif op.typ == OpType.ELSE:
-            assert op.jmp is not None, "This could be a bug in the compilation step"
-            ip = op.jmp
+            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+            ip = op.operand
         elif op.typ == OpType.END:
-            assert op.jmp is not None, "This could be a bug in the compilation step"
-            ip = op.jmp
-        elif op.typ == OpType.PRINT:
-            a = stack.pop()
-            print(a)
-            ip += 1
-        elif op.typ == OpType.DUP:
-            a = stack.pop()
-            stack.append(a)
-            stack.append(a)
-            ip += 1
-        elif op.typ == OpType.DUP2:
-            b = stack.pop()
-            a = stack.pop()
-            stack.append(a)
-            stack.append(b)
-            stack.append(a)
-            stack.append(b)
-            ip += 1
-        elif op.typ == OpType.SWAP:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(a)
-            stack.append(b)
-            ip += 1
-        elif op.typ == OpType.DROP:
-            stack.pop()
-            ip += 1
-        elif op.typ == OpType.OVER:
-            a = stack.pop()
-            b = stack.pop()
-            stack.append(b)
-            stack.append(a)
-            stack.append(b)
-            ip += 1
+            assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+            ip = op.operand
         elif op.typ == OpType.WHILE:
             ip += 1
         elif op.typ == OpType.DO:
             a = stack.pop()
             if a == 0:
-                assert op.jmp is not None, "This could be a bug in the compilation step"
-                ip = op.jmp
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                ip = op.operand
             else:
                 ip += 1
-        elif op.typ == OpType.MEM:
-            stack.append(STR_SIZE)
-            ip += 1
-        elif op.typ == OpType.LOAD:
-            addr = stack.pop()
-            byte = mem[addr]
-            stack.append(byte)
-            ip += 1
-        elif op.typ == OpType.STORE:
-            store_value = stack.pop()
-            store_addr = stack.pop()
-            mem[store_addr] = store_value & 0xFF
-            ip += 1
-        elif op.typ == OpType.SYSCALL0:
-            syscall_number = stack.pop()
-            if syscall_number == 39:
-                stack.append(os.getpid())
-            else:
-                assert False, "unknown syscall number %d" % syscall_number
-            ip += 1
-        elif op.typ == OpType.SYSCALL1:
-            assert False, "not implemented"
-        elif op.typ == OpType.SYSCALL2:
-            assert False, "not implemented"
-        elif op.typ == OpType.SYSCALL3:
-            syscall_number = stack.pop()
-            arg1 = stack.pop()
-            arg2 = stack.pop()
-            arg3 = stack.pop()
-            if syscall_number == 1:
-                fd = arg1
-                buf = arg2
-                count = arg3
-                s = mem[buf:buf+count].decode('utf-8')
-                if fd == 1:
-                    print(s, end='')
-                elif fd == 2:
-                    print(s, end='', file=sys.stderr)
+        elif op.typ == OpType.INTRINSIC:
+            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in simulate_little_endian_linux()" + str(len(Intrinsic))
+            if op.operand == Intrinsic.PLUS:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(a + b)
+                ip += 1
+            elif op.operand == Intrinsic.MINUS:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b - a)
+                ip += 1
+            elif op.operand == Intrinsic.MUL:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b * a)
+                ip += 1
+            elif op.operand == Intrinsic.DIVMOD:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b // a)
+                stack.append(b % a)
+                ip += 1
+            elif op.operand == Intrinsic.EQ:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(a == b))
+                ip += 1
+            elif op.operand == Intrinsic.GT:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b > a))
+                ip += 1
+            elif op.operand == Intrinsic.LT:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b < a))
+                ip += 1
+            elif op.operand == Intrinsic.GE:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b >= a))
+                ip += 1
+            elif op.operand == Intrinsic.LE:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b <= a))
+                ip += 1
+            elif op.operand == Intrinsic.NE:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b != a))
+                ip += 1
+            elif op.operand == Intrinsic.SHR:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b >> a))
+                ip += 1
+            elif op.operand == Intrinsic.SHL:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(b << a))
+                ip += 1
+            elif op.operand == Intrinsic.BOR:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(a | b))
+                ip += 1
+            elif op.operand == Intrinsic.BAND:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(int(a & b))
+                ip += 1
+            elif op.operand == Intrinsic.PRINT:
+                a = stack.pop()
+                fds[1].write(b"%d\n" % a)
+                fds[1].flush()
+                ip += 1
+            elif op.operand == Intrinsic.DUP:
+                a = stack.pop()
+                stack.append(a)
+                stack.append(a)
+                ip += 1
+            elif op.operand == Intrinsic.SWAP:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(a)
+                stack.append(b)
+                ip += 1
+            elif op.operand == Intrinsic.DROP:
+                stack.pop()
+                ip += 1
+            elif op.operand == Intrinsic.OVER:
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b)
+                stack.append(a)
+                stack.append(b)
+                ip += 1
+            elif op.operand == Intrinsic.ARGC:
+                stack.append(argc)
+                ip += 1
+            elif op.operand == Intrinsic.ARGV:
+                stack.append(argv_buf_ptr)
+                ip += 1
+            elif op.operand == Intrinsic.MEM:
+                stack.append(STR_SIZE)
+                ip += 1
+            elif op.operand == Intrinsic.LOAD:
+                addr = stack.pop()
+                byte = mem[addr]
+                stack.append(byte)
+                ip += 1
+            elif op.operand == Intrinsic.STORE:
+                store_value = stack.pop()
+                store_addr = stack.pop()
+                mem[store_addr] = store_value & 0xFF
+                ip += 1
+            elif op.operand == Intrinsic.LOAD64:
+                addr = stack.pop()
+                _bytes = bytearray(8)
+                for offset in range(0,8):
+                    _bytes[offset] = mem[addr + offset]
+                stack.append(int.from_bytes(_bytes, byteorder="little"))
+                ip += 1
+            elif op.operand == Intrinsic.STORE64:
+                store_value64 = stack.pop().to_bytes(length=8, byteorder="little")
+                store_addr64 = stack.pop()
+                for byte in store_value64:
+                    mem[store_addr64] = byte
+                    store_addr64 += 1
+                ip += 1
+            elif op.operand == Intrinsic.SYSCALL0:
+                syscall_number = stack.pop()
+                if syscall_number == 39:
+                    stack.append(os.getpid())
                 else:
-                    assert False, "unknown file descriptor %d" % fd
-                stack.append(count)
+                    assert False, "unknown syscall number %d" % syscall_number
+                ip += 1
+            elif op.operand == Intrinsic.SYSCALL1:
+                syscall_number = stack.pop()
+                if syscall_number == 60:
+                    code = stack.pop()
+                    sys.exit(code)
+            elif op.operand == Intrinsic.SYSCALL2:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.SYSCALL3:
+                syscall_number = stack.pop()
+                arg1 = stack.pop()
+                arg2 = stack.pop()
+                arg3 = stack.pop()
+                if syscall_number == 0: # SYS_read
+                    fd = arg1
+                    buf = arg2
+                    count = arg3
+                    # NOTE: trying to behave like a POSIX tty in canonical mode by making the data available
+                    # on each newline
+                    # https://en.wikipedia.org/wiki/POSIX_terminal_interface#Canonical_mode_processing
+                    # TODO: maybe this behavior should be customizable
+                    data = fds[fd].readline(count)
+                    mem[buf:buf+len(data)] = data
+                    stack.append(len(data))
+                elif syscall_number == 1: # SYS_write
+                    fd = arg1
+                    buf = arg2
+                    count = arg3
+                    fds[fd].write(mem[buf:buf+count])
+                    fds[fd].flush()
+                    stack.append(count)
+                else:
+                    assert False, "unknown syscall number %d" % syscall_number
+                ip += 1
+            elif op.operand == Intrinsic.SYSCALL4:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.SYSCALL5:
+                assert False, "not implemented"
+            elif op.operand == Intrinsic.SYSCALL6:
+                assert False, "not implemented"
             else:
-                assert False, "unknown syscall number %d" % syscall_number
-            ip += 1
-        elif op.typ == OpType.SYSCALL4:
-            assert False, "not implemented"
-        elif op.typ == OpType.SYSCALL5:
-            assert False, "not implemented"
-        elif op.typ == OpType.SYSCALL6:
-            assert False, "not implemented"
-        elif op.typ == OpType.MACRO:
-            assert False, "Unreachable, all macros should be deleted in parsing"
+                assert False, "unreachable"
         else:
             assert False, "unreachable"
     if debug > 1:
@@ -364,13 +425,349 @@ def simulate_little_endian_linux(program: Program, debug: int):
         print("[INFO] Stack dump")
         print(stack)
         
+class Type(IntEnum):
+    INT = auto()
+    PTR = auto()
+    BOOL = auto()
+
+def getTypeHuman(i: int) -> str:
+    if i == Type.INT:
+        return "int"
+
+def type_check_program(program: Program, mode: str):
+    errors = 0
+    stack: List[Type] = []
+    for ip in range(len(program)):
+        op = program[ip]
+        assert len(OpType) == 8, "Exhaustive ops handling in type_check_program"
+        if op.typ == OpType.PUSH_INT:
+            stack.append(Type.INT)
+        elif op.typ == OpType.PUSH_STR:
+            stack.append(Type.INT)
+            stack.append(Type.PTR)
+        elif op.typ == OpType.INTRINSIC:
+            assert len(Intrinsic) == 34, "Exhaustive intrinsic handling in type_check_program"
+            if op.operand == Intrinsic.PLUS:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `+` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `+` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `+` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.MINUS:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.MUL:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `-` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.DIVMOD:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `divmod` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `divmod` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `divmod` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.EQ:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `=` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.BOOL)
+            elif op.operand == Intrinsic.GT:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `>` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.LT:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `<` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.GE:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `>=` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.LE:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `<=` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.NE:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `!=` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `!=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `!=` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SHR:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `>>` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>>` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `>>` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SHL:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `<<` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<<` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `<<` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.BOR:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `|` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `|` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `|` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.BAND:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `&` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                if a != Type.INT:
+                    eprint("{}:{}:{} ERR: The `&` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(a)))
+                    errors += 1
+                if b != Type.INT:
+                    eprint("{}:{}:{} ERR: The `&` intrinsic requires 2 `int` arguments but {} was provided".format(op.loc[0], op.loc[1], op.loc[2], getTypeHuman(b)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.PRINT:
+                if len(stack) < 1:
+                    eprint("{}:{}:{} ERR: The `print` intrinsic requires 1 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                
+            elif op.operand == Intrinsic.DUP:
+                if len(stack) < 1:
+                    eprint("{}:{}:{} ERR: The `dup` intrinsic requires 1 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SWAP:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `swap` intrinsic requires 2 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b)
+                stack.append(a)
+            elif op.operand == Intrinsic.DROP:
+                if len(stack) < 1:
+                    eprint("{}:{}:{} ERR: The `drop` intrinsic requires 1 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+            elif op.operand == Intrinsic.OVER:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `over` intrinsic requires 2 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                a = stack.pop()
+                b = stack.pop()
+                stack.append(b)
+                stack.append(a)
+                stack.append(b)
+            elif op.operand == Intrinsic.MEM:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.LOAD:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.STORE:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.LOAD64:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.STORE64:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.SYSCALL0:
+                if len(stack) < 1:
+                    eprint("{}:{}:{} ERR: The `syscall0` intrinsic requires 1 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL1:
+                if len(stack) < 2:
+                    eprint("{}:{}:{} ERR: The `syscall1` intrinsic requires 2 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL2:
+                if len(stack) < 3:
+                    eprint("{}:{}:{} ERR: The `syscall2` intrinsic requires 3 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL3:
+                if len(stack) < 4:
+                    eprint("{}:{}:{} ERR: The `syscall3` intrinsic requires 4 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL4:
+                if len(stack) < 5:
+                    eprint("{}:{}:{} ERR: The `syscall4` intrinsic requires 5 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL5:
+                if len(stack) < 6:
+                    eprint("{}:{}:{} ERR: The `syscall5` intrinsic requires 6 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.SYSCALL6:
+                if len(stack) < 7:
+                    eprint("{}:{}:{} ERR: The `syscall6` intrinsic requires 7 argument but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
+                    errors += 1
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.pop()
+                stack.append(Type.INT)
+            elif op.operand == Intrinsic.ARGC:
+                assert False, "Not implemented"
+            elif op.operand == Intrinsic.ARGV:
+                assert False, "Not implemented"
+            else:
+                assert False, "Unreachable"
+
+        elif op.typ == OpType.IF:
+            assert False, "Not implemented"
+        elif op.typ == OpType.END:
+            assert False, "Not implemented"
+        elif op.typ == OpType.ELSE:
+            assert False, "Not implemented"
+        elif op.typ == OpType.WHILE:
+            assert False, "Not implemented"
+        elif op.typ == OpType.DO:
+            assert False, "Not implemented"
+        else:
+            assert False, "Unreachable"
+    if len(stack) != 0:
+        eprint("ERR: Unhandled data on the stack".format(mode, errors))
+        errors += 1
+
+    if errors > 0:
+        eprint("Could not {} program due to {} previous errors.".format(mode, errors))
+        exit(1)
+
 
 def generate_nasm_linux_x86_64(program: Program, file_path: str):
-    str_arr: List[bytes] = []
-    print("[INFO]: Generating %s" % file_path)
+    strs: List[bytes] = []
     with open(file_path, "w") as out:
         out.write("BITS 64\n")
-        out.write("segment .text\n\n")
+        out.write("segment .text\n")
         out.write("print:\n")
         out.write("    mov     r9, -3689348814741910323\n")
         out.write("    sub     rsp, 40\n")
@@ -406,340 +803,349 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("    ret\n")
         out.write("global _start\n")
         out.write("_start:\n")
+        out.write("    ; -- init argv\n")
+        out.write("    mov [args_ptr], rsp\n")
+        out.write("    \n")
         for ip in range(len(program)):
             op = program[ip]
-            assert len(OpType) == 42, "Exhaustive handling of ops in compilation"
+            assert len(OpType) == 8, "Exhaustive ops handling in generate_nasm_linux_x86_64"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
-                assert isinstance(op.value, int), "This could be a bug in the compilation step"
-                out.write("    ;; -- push int %d --\n" % op.value)
-                out.write("    mov rax, %d\n" % op.value)
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                out.write("    ;; -- push int %d --\n" % op.operand)
+                out.write("    mov rax, %d\n" % op.operand)
                 out.write("    push rax\n")
             elif op.typ == OpType.PUSH_STR:
-                assert isinstance(op.value, str), "This could be a bug in the compilation step"
-                value = op.value.encode('utf-8')
+                assert isinstance(op.operand, str), "This could be a bug in the compilation step"
+                value = op.operand.encode('utf-8')
                 n = len(value)
-                out.write("    ;; -- push str--\n")
+                out.write("    ;; -- push str --\n")
                 out.write("    mov rax, %d\n" % n)
                 out.write("    push rax\n")
-                out.write("    push str_%d\n" % len(str_arr))
-                str_arr.append(value)
-            elif op.typ == OpType.PLUS:
-                out.write("    ;; -- plus --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    add rax, rbx\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.MINUS:
-                out.write("    ;; -- minus --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    sub rbx, rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.MULT:
-                out.write("    ;; -- mult --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    mul rbx\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.DIV:
-                out.write("    ;; -- div --\n")
-                out.write("    pop rbx\n")
-                out.write("    pop rax\n")
-                out.write("    mov rdx, 0\n")
-                out.write("    div rbx\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SHR:
-                out.write("    ;; -- shr --\n")
-                out.write("    pop rcx\n")
-                out.write("    pop rbx\n")
-                out.write("    shr rbx, cl\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.SHL:
-                out.write("    ;; -- shl --\n")
-                out.write("    pop rcx\n")
-                out.write("    pop rbx\n")
-                out.write("    shl rbx, cl\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.BOR:
-                out.write("    ;; -- bor --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    or rbx, rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.BAND:
-                out.write("    ;; -- band --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    and rbx, rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.PRINT:
-                out.write("    ;; -- print --\n")
-                out.write("    pop rdi\n")
-                out.write("    call print\n")
-            elif op.typ == OpType.EQUAL:
-                out.write("    ;; -- equal -- \n")
-                out.write("    mov rcx, 0\n");
-                out.write("    mov rdx, 1\n");
-                out.write("    pop rax\n");
-                out.write("    pop rbx\n");
-                out.write("    cmp rax, rbx\n");
-                out.write("    cmove rcx, rdx\n");
-                out.write("    push rcx\n")
+                out.write("    push str_%d\n" % len(strs))
+                strs.append(value)
             elif op.typ == OpType.IF:
                 out.write("    ;; -- if --\n")
                 out.write("    pop rax\n")
                 out.write("    test rax, rax\n")
-                assert op.jmp is not None, "`if` instruction does not have a reference to the end of its block. Please call compile_tokens_to_program() on the program before trying to compile it"
-                out.write("    jz addr_%d\n" % op.jmp)
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.ELSE:
                 out.write("    ;; -- else --\n")
-                assert op.jmp is not None, "`else` instruction does not have a reference to the end of its block. Please call compile_tokens_to_program() on the program before trying to compile it"
-                out.write("    jmp addr_%d\n" % op.jmp)
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.END:
-                assert op.jmp is not None, "`end` instruction does not have a reference to the next instruction to jump to. Please call compile_tokens_to_program() on the program before trying to compile it"
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
                 out.write("    ;; -- end --\n")
-                if ip + 1 != op.jmp:
-                    out.write("    jmp addr_%d\n" % op.jmp)
-            elif op.typ == OpType.DUP:
-                out.write("    ;; -- dup -- \n")
-                out.write("    pop rax\n")
-                out.write("    push rax\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.DUP2:
-                out.write("    ;; -- 2dup -- \n")
-                out.write("    pop rbx\n")
-                out.write("    pop rax\n")
-                out.write("    push rax\n")
-                out.write("    push rbx\n")
-                out.write("    push rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.SWAP:
-                out.write("    ;; -- swap --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    push rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.DROP:
-                out.write("    ;; -- drop --\n")
-                out.write("    pop rax\n")
-            elif op.typ == OpType.GT:
-                out.write("    ; -- greater than (>) --\n")
-                out.write("    mov rcx, 0\n");
-                out.write("    mov rdx, 1\n");
-                out.write("    pop rbx\n");
-                out.write("    pop rax\n");
-                out.write("    cmp rax, rbx\n");
-                out.write("    cmovg rcx, rdx\n");
-                out.write("    push rcx\n")
-            elif op.typ == OpType.LT:
-                out.write("    ; -- greater than (>) --\n")
-                out.write("    mov rcx, 0\n");
-                out.write("    mov rdx, 1\n");
-                out.write("    pop rbx\n");
-                out.write("    pop rax\n");
-                out.write("    cmp rax, rbx\n");
-                out.write("    cmovl rcx, rdx\n");
-                out.write("    push rcx\n")
+                if ip + 1 != op.operand:
+                    out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.WHILE:
                 out.write("    ;; -- while --\n")
             elif op.typ == OpType.DO:
                 out.write("    ;; -- do --\n")
                 out.write("    pop rax\n")
                 out.write("    test rax, rax\n")
-                assert op.jmp is not None, "This could be a bug in the compilation step"
-                out.write("    jz addr_%d\n" % op.jmp)
-            elif op.typ == OpType.MEM:
-                out.write("    ; -- mem --\n")
-                out.write("    push mem\n")
-            elif op.typ == OpType.LOAD:
-                out.write("    ; -- mem load --\n")
-                out.write("    pop rax\n")
-                out.write("    xor rbx, rbx\n")
-                out.write("    mov bl, [rax]\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.STORE:
-                out.write("    ; -- mem store --\n")
-                out.write("    pop rbx\n")
-                out.write("    pop rax\n")
-                out.write("    mov [rax], bl\n")
-            elif op.typ == OpType.SYSCALL0:
-                out.write("    ;; -- syscall0 --\n")
-                out.write("    pop rax\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL1:
-                out.write("    ;; -- syscall1 --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rdi\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL2:
-                out.write("    ;; -- syscall2 -- \n")
-                out.write("    pop rax\n");
-                out.write("    pop rdi\n");
-                out.write("    pop rsi\n");
-                out.write("    syscall\n");
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL3:
-                out.write("    ;; -- syscall3 --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rdi\n")
-                out.write("    pop rsi\n")
-                out.write("    pop rdx\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL4:
-                out.write("    ;; -- syscall4 --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rdi\n")
-                out.write("    pop rsi\n")
-                out.write("    pop rdx\n")
-                out.write("    pop r10\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL5:
-                out.write("    ;; -- syscall5 --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rdi\n")
-                out.write("    pop rsi\n")
-                out.write("    pop rdx\n")
-                out.write("    pop r10\n")
-                out.write("    pop r8\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.SYSCALL6:
-                out.write("    ;; -- syscall6 --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rdi\n")
-                out.write("    pop rsi\n")
-                out.write("    pop rdx\n")
-                out.write("    pop r10\n")
-                out.write("    pop r8\n")
-                out.write("    pop r9\n")
-                out.write("    syscall\n")
-                out.write("    push rax\n")
-            elif op.typ == OpType.OVER:
-                out.write("    ;; -- over --\n")
-                out.write("    pop rax\n")
-                out.write("    pop rbx\n")
-                out.write("    push rbx\n")
-                out.write("    push rax\n")
-                out.write("    push rbx\n")
-            elif op.typ == OpType.MOD:
-                out.write("    ;; -- mod --\n")
-                out.write("    xor rdx, rdx\n")
-                out.write("    pop rbx\n")
-                out.write("    pop rax\n")
-                out.write("    div rbx\n")
-                out.write("    push rdx\n");
-            elif op.typ == OpType.GE:
-                out.write("    ;; -- gt --\n")
-                out.write("    mov rcx, 0\n");
-                out.write("    mov rdx, 1\n");
-                out.write("    pop rbx\n");
-                out.write("    pop rax\n");
-                out.write("    cmp rax, rbx\n");
-                out.write("    cmovge rcx, rdx\n");
-                out.write("    push rcx\n")
-            elif op.typ == OpType.LE:
-                out.write("    ;; -- gt --\n")
-                out.write("    mov rcx, 0\n");
-                out.write("    mov rdx, 1\n");
-                out.write("    pop rbx\n");
-                out.write("    pop rax\n");
-                out.write("    cmp rax, rbx\n");
-                out.write("    cmovle rcx, rdx\n");
-                out.write("    push rcx\n")
-            elif op.typ == OpType.NE:
-                out.write("    ;; -- ne --\n")
-                out.write("    mov rcx, 0\n")
-                out.write("    mov rdx, 1\n")
-                out.write("    pop rbx\n")
-                out.write("    pop rax\n")
-                out.write("    cmp rax, rbx\n")
-                out.write("    cmovne rcx, rdx\n")
-                out.write("    push rcx\n")
-            elif op.typ == OpType.TRUE:
-                out.write("    ;; -- true --\n")
-                out.write("    mov rcx, 1\n")
-                out.write("    push rcx\n")
-            elif op.typ == OpType.FALSE:
-                out.write("    ;; -- false --\n")
-                out.write("    mov rcx, 0\n")
-                out.write("    push rcx\n")
-
+                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                out.write("    jz addr_%d\n" % op.operand)
+            elif op.typ == OpType.INTRINSIC:
+                assert len(Intrinsic) == 34, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64()"
+                if op.operand == Intrinsic.PLUS:
+                    out.write("    ;; -- plus --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    add rax, rbx\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.MINUS:
+                    out.write("    ;; -- minus --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    sub rbx, rax\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.MUL:
+                    out.write("    ;; -- mul --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    mul rbx\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.DIVMOD:
+                    out.write("    ;; -- mod --\n")
+                    out.write("    xor rdx, rdx\n")
+                    out.write("    pop rbx\n")
+                    out.write("    pop rax\n")
+                    out.write("    div rbx\n")
+                    out.write("    push rax\n");
+                    out.write("    push rdx\n");
+                elif op.operand == Intrinsic.SHR:
+                    out.write("    ;; -- shr --\n")
+                    out.write("    pop rcx\n")
+                    out.write("    pop rbx\n")
+                    out.write("    shr rbx, cl\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.SHL:
+                    out.write("    ;; -- shl --\n")
+                    out.write("    pop rcx\n")
+                    out.write("    pop rbx\n")
+                    out.write("    shl rbx, cl\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.BOR:
+                    out.write("    ;; -- bor --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    or rbx, rax\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.BAND:
+                    out.write("    ;; -- band --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    and rbx, rax\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.PRINT:
+                    out.write("    ;; -- print --\n")
+                    out.write("    pop rdi\n")
+                    out.write("    call print\n")
+                elif op.operand == Intrinsic.EQ:
+                    out.write("    ;; -- equal -- \n")
+                    out.write("    mov rcx, 0\n");
+                    out.write("    mov rdx, 1\n");
+                    out.write("    pop rax\n");
+                    out.write("    pop rbx\n");
+                    out.write("    cmp rax, rbx\n");
+                    out.write("    cmove rcx, rdx\n");
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.GT:
+                    out.write("    ;; -- gt --\n")
+                    out.write("    mov rcx, 0\n");
+                    out.write("    mov rdx, 1\n");
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    cmp rax, rbx\n");
+                    out.write("    cmovg rcx, rdx\n");
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.LT:
+                    out.write("    ;; -- gt --\n")
+                    out.write("    mov rcx, 0\n");
+                    out.write("    mov rdx, 1\n");
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    cmp rax, rbx\n");
+                    out.write("    cmovl rcx, rdx\n");
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.GE:
+                    out.write("    ;; -- gt --\n")
+                    out.write("    mov rcx, 0\n");
+                    out.write("    mov rdx, 1\n");
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    cmp rax, rbx\n");
+                    out.write("    cmovge rcx, rdx\n");
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.LE:
+                    out.write("    ;; -- gt --\n")
+                    out.write("    mov rcx, 0\n");
+                    out.write("    mov rdx, 1\n");
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    cmp rax, rbx\n");
+                    out.write("    cmovle rcx, rdx\n");
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.NE:
+                    out.write("    ;; -- ne --\n")
+                    out.write("    mov rcx, 0\n")
+                    out.write("    mov rdx, 1\n")
+                    out.write("    pop rbx\n")
+                    out.write("    pop rax\n")
+                    out.write("    cmp rax, rbx\n")
+                    out.write("    cmovne rcx, rdx\n")
+                    out.write("    push rcx\n")
+                elif op.operand == Intrinsic.DUP:
+                    out.write("    ;; -- dup -- \n")
+                    out.write("    pop rax\n")
+                    out.write("    push rax\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SWAP:
+                    out.write("    ;; -- swap --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    push rax\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.DROP:
+                    out.write("    ;; -- drop --\n")
+                    out.write("    pop rax\n")
+                elif op.operand == Intrinsic.OVER:
+                    out.write("    ;; -- over --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rbx\n")
+                    out.write("    push rbx\n")
+                    out.write("    push rax\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.ARGC:
+                    out.write("    ; -- argc --\n")
+                    out.write("    mov rax, [args_ptr]\n")
+                    out.write("    mov rax, [rax]\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.ARGV:
+                    out.write("    ; -- argv --\n")
+                    out.write("    mov rax, [args_ptr]\n")
+                    out.write("    add rax, 8\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.MEM:
+                    out.write("    ;; -- mem --\n")
+                    out.write("    push mem\n")
+                elif op.operand == Intrinsic.LOAD:
+                    out.write("    ;; -- load --\n")
+                    out.write("    pop rax\n")
+                    out.write("    xor rbx, rbx\n")
+                    out.write("    mov bl, [rax]\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.STORE:
+                    out.write("    ;; -- store --\n")
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    mov [rax], bl\n");
+                elif op.operand == Intrinsic.LOAD64:
+                    out.write("    ;; -- load --\n")
+                    out.write("    pop rax\n")
+                    out.write("    xor rbx, rbx\n")
+                    out.write("    mov rbx, [rax]\n")
+                    out.write("    push rbx\n")
+                elif op.operand == Intrinsic.STORE64:
+                    out.write("    ;; -- store --\n")
+                    out.write("    pop rbx\n");
+                    out.write("    pop rax\n");
+                    out.write("    mov [rax], rbx\n");
+                elif op.operand == Intrinsic.SYSCALL0:
+                    out.write("    ;; -- syscall0 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL1:
+                    out.write("    ;; -- syscall1 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rdi\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL2:
+                    out.write("    ;; -- syscall2 -- \n")
+                    out.write("    pop rax\n");
+                    out.write("    pop rdi\n");
+                    out.write("    pop rsi\n");
+                    out.write("    syscall\n");
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL3:
+                    out.write("    ;; -- syscall3 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rdi\n")
+                    out.write("    pop rsi\n")
+                    out.write("    pop rdx\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL4:
+                    out.write("    ;; -- syscall4 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rdi\n")
+                    out.write("    pop rsi\n")
+                    out.write("    pop rdx\n")
+                    out.write("    pop r10\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL5:
+                    out.write("    ;; -- syscall5 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rdi\n")
+                    out.write("    pop rsi\n")
+                    out.write("    pop rdx\n")
+                    out.write("    pop r10\n")
+                    out.write("    pop r8\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                elif op.operand == Intrinsic.SYSCALL6:
+                    out.write("    ;; -- syscall6 --\n")
+                    out.write("    pop rax\n")
+                    out.write("    pop rdi\n")
+                    out.write("    pop rsi\n")
+                    out.write("    pop rdx\n")
+                    out.write("    pop r10\n")
+                    out.write("    pop r8\n")
+                    out.write("    pop r9\n")
+                    out.write("    syscall\n")
+                    out.write("    push rax\n")
+                else:
+                    assert False, "unreachable"
             else:
-                print(op.typ)
-                assert False, "Unreachable"
+                assert False, "unreachable"
 
         out.write("addr_%d:\n" % len(program))
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
-
         out.write("segment .data\n")
 
-        for index, s in enumerate(str_arr):
+        for index, s in enumerate(strs):
             out.write("; %s\n" % str(s).encode("unicode_escape").decode("utf-8"))
             out.write("str_%d: db %s" % (index, ",".join(map(hex, list(s))) + "\n\n"))
             
         out.write("segment .bss\n")
-        out.write("mem: resb %d\n" % MEMORY_SIZE)
+        out.write("    args_ptr: resq 1\n")
+        out.write("    mem: resb %d\n" % MEMORY_SIZE)
 
 
+assert len(Keyword) == 7, "Exhaustive KEYWORD_NAMES definition."
+KEYWORD_NAMES = {
+    'if': Keyword.IF,
+    'end': Keyword.END,
+    'else': Keyword.ELSE,
+    'while': Keyword.WHILE,
+    'do': Keyword.DO,
+    'macro': Keyword.MACRO,
+    'include': Keyword.INCLUDE,
+}
 
 
-BUILTIN_WORDS = {
-                    "+":          OpType.PLUS,
-                    "-":          OpType.MINUS,
-                    "/":          OpType.DIV,
-                    "*":          OpType.MULT,
-                    "mod":        OpType.MOD,
-                    "print":      OpType.PRINT,
-                    "=":          OpType.EQUAL,
-                    "if":         OpType.IF,
-                    "end":        OpType.END,
-                    "else":       OpType.ELSE,
-                    "dup":        OpType.DUP,
-                    ">":          OpType.GT,
-                    "<":          OpType.LT,
-                    ">=":         OpType.GE,
-                    "<=":         OpType.LE,
-                    "!=":         OpType.NE,
-                    "while":      OpType.WHILE,
-                    "do":         OpType.DO,
-                    "mem":        OpType.MEM,
-                    "store":      OpType.STORE,
-                    "load":       OpType.LOAD,
-                    "syscall0":   OpType.SYSCALL0,
-                    "syscall1":   OpType.SYSCALL1,
-                    "syscall2":   OpType.SYSCALL2,
-                    "syscall3":   OpType.SYSCALL3,
-                    "syscall4":   OpType.SYSCALL4,
-                    "syscall5":   OpType.SYSCALL5,
-                    "syscall6":   OpType.SYSCALL6,
-                    '>>':         OpType.SHR,
-                    '<<':         OpType.SHL,
-                    '|':          OpType.BOR,
-                    '&':          OpType.BAND,
-                    '2dup':       OpType.DUP2,
-                    'drop':       OpType.DROP,
-                    'over':       OpType.OVER,
-                    'swap':       OpType.SWAP,
-                    'macro':      OpType.MACRO,
-                    'include':    OpType.INCLUDE,
-                    'true':    OpType.TRUE,
-                    'false':    OpType.FALSE
-                }
-                              #           \/ push_int and push_str
-assert len(OpType) == len(BUILTIN_WORDS) + 2, colors.RED + "Exaustive BUILT_IN_WORDS definitions. Keep in mind that not all of the new words have to be defined here only those that introduce new builtin words" + colors.RESET
-
+assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_NAMES definition"
+INTRINSIC_NAMES = {
+    '+': Intrinsic.PLUS,
+    '-': Intrinsic.MINUS,
+    '*': Intrinsic.MUL,
+    'divmod': Intrinsic.DIVMOD,
+    'print': Intrinsic.PRINT,
+    '=': Intrinsic.EQ,
+    '>': Intrinsic.GT,
+    '<': Intrinsic.LT,
+    '>=': Intrinsic.GE,
+    '<=': Intrinsic.LE,
+    '!=': Intrinsic.NE,
+    'shr': Intrinsic.SHR,
+    '>>': Intrinsic.SHR,
+    'shr': Intrinsic.SHL,
+    '<<': Intrinsic.SHL,
+    'bor': Intrinsic.BOR,
+    '|': Intrinsic.BOR,
+    'band': Intrinsic.BAND,
+    '&': Intrinsic.BAND,
+    'dup': Intrinsic.DUP,
+    'swap': Intrinsic.SWAP,
+    'drop': Intrinsic.DROP,
+    'over': Intrinsic.OVER,
+    'mem': Intrinsic.MEM,
+    'store': Intrinsic.STORE,
+    'load': Intrinsic.LOAD,
+    'store64': Intrinsic.STORE64,
+    'load64': Intrinsic.LOAD64,
+    'syscall0': Intrinsic.SYSCALL0,
+    'syscall1': Intrinsic.SYSCALL1,
+    'syscall2': Intrinsic.SYSCALL2,
+    'syscall3': Intrinsic.SYSCALL3,
+    'syscall4': Intrinsic.SYSCALL4,
+    'syscall5': Intrinsic.SYSCALL5,
+    'syscall6': Intrinsic.SYSCALL6,
+    'argc': Intrinsic.ARGC,
+    'argv': Intrinsic.ARGV,
+}
 
 @dataclass
 class Macro:
     loc: Loc
-    tokens: List[Op]
+    tokens: List[Token]
 
 def tokentype_human_readable_name(typ: TokenType) -> str:
     if typ == TokenType.WORD:
@@ -753,141 +1159,171 @@ def tokentype_human_readable_name(typ: TokenType) -> str:
     else:
         return "UNKNOWN"
 
-def compile_tokens_to_program(tokens: List[Token]) -> Program:
-    stack = []
-    program = []
-    rtokens = list(reversed(tokens))
+def expand_macro(macro: Macro, expanded: int) -> List[Token]:
+    result = list(map(lambda x: copy(x), macro.tokens))
+    for token in result:
+        token.expanded = expanded
+    return result
+
+
+def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], expansion_limit: int) -> Program:
+    stack: List[OpAddr] = []
+    program: List[Op] = []
+    rtokens: List[Token] = list(reversed(tokens))
     macros: Dict[str, Macro] = {}
-    ip = 0;
+    ip: OpAddr = 0;
     while len(rtokens) > 0:
         # TODO: some sort of safety mechanism for recursive macros
         token = rtokens.pop()
-        op = None
-        assert len(TokenType) == 4, "Exhaustive token handling in compile_tokens_to_program"
+        assert len(TokenType) == 5, "Exhaustive token handling in compile_tokens_to_program"
         if token.typ == TokenType.WORD:
             assert isinstance(token.value, str), "This could be a bug in the lexer"
-            if token.value in BUILTIN_WORDS:
-                op = Op(typ=BUILTIN_WORDS[token.value], loc=token.loc)
+            if token.value in INTRINSIC_NAMES:
+                program.append(Op(typ=OpType.INTRINSIC, loc=token.loc, operand=INTRINSIC_NAMES[token.value]))
+                ip += 1
             elif token.value in macros:
-                rtokens += reversed(macros[token.value].tokens)
-                continue
+                if token.expanded >= expansion_limit:
+                    print("%s:%d:%d: ERROR: the macro exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                    exit(1)
+                rtokens += reversed(expand_macro(macros[token.value], token.expanded + 1))
             else:
-                print("%s:%d:%d: unknown word `%s`" % (token.loc + (token.value, )))
+                print("%s:%d:%d: ERROR: unknown word `%s`" % (token.loc + (token.value, )), file=sys.stderr)
                 exit(1)
         elif token.typ == TokenType.INT:
-            op = Op(typ=OpType.PUSH_INT, value=token.value, loc=token.loc)
+            assert isinstance(token.value, int), "This could be a bug in the lexer"
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc))
+            ip += 1
         elif token.typ == TokenType.STR:
-            op = Op(typ=OpType.PUSH_STR, value=token.value, loc=token.loc)
+            assert isinstance(token.value, str), "This could be a bug in the lexer"
+            program.append(Op(typ=OpType.PUSH_STR, operand=token.value, loc=token.loc));
+            ip += 1
         elif token.typ == TokenType.CHAR:
-            op = Op(typ=OpType.PUSH_INT, value=ord(token.value), loc=token.loc)
+            assert isinstance(token.value, int)
+            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, loc=token.loc));
+            ip += 1
+        elif token.typ == TokenType.KEYWORD:
+            assert len(Keyword) == 7, "Exhaustive keywords handling in compile_tokens_to_program()"
+            if token.value == Keyword.IF:
+                program.append(Op(typ=OpType.IF, loc=token.loc))
+                stack.append(ip)
+                ip += 1
+            elif token.value == Keyword.ELSE:
+                program.append(Op(typ=OpType.ELSE, loc=token.loc))
+                if_ip = stack.pop()
+                if program[if_ip].typ != OpType.IF:
+                    print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc, file=sys.stderr)
+                    exit(1)
+                program[if_ip].operand = ip + 1
+                stack.append(ip)
+                ip += 1
+            elif token.value == Keyword.END:
+                program.append(Op(typ=OpType.END, loc=token.loc))
+                block_ip = stack.pop()
+                if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
+                    program[block_ip].operand = ip
+                    program[ip].operand = ip + 1
+                elif program[block_ip].typ == OpType.DO:
+                    assert program[block_ip].operand is not None
+                    program[ip].operand = program[block_ip].operand
+                    program[block_ip].operand = ip + 1
+                else:
+                    print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc, file=sys.stderr)
+                    exit(1)
+                ip += 1
+            elif token.value == Keyword.WHILE:
+                program.append(Op(typ=OpType.WHILE, loc=token.loc))
+                stack.append(ip)
+                ip += 1
+            elif token.value == Keyword.DO:
+                program.append(Op(typ=OpType.DO, loc=token.loc))
+                while_ip = stack.pop()
+                program[ip].operand = while_ip
+                stack.append(ip)
+                ip += 1
+            elif token.value == Keyword.INCLUDE:
+                if len(rtokens) == 0:
+                    print("%s:%d:%d: ERROR: expected path to the include file but found nothing" % token.loc, file=sys.stderr)
+                    exit(1)
+                token = rtokens.pop()
+                if token.typ != TokenType.STR:
+                    print("%s:%d:%d: ERROR: expected path to the include file to be %s but found %s" % (token.loc + (tokentype_human_readable_name(TokenType.STR), tokentype_human_readable_name(token.typ))), file=sys.stderr)
+                    exit(1)
+                assert isinstance(token.value, str), "This is probably a bug in the lexer"
+                # TODO: safety mechanism for recursive includes
+                file_included = False
+                
+                
+
+                for include_path in include_paths:
+                    if "/" in token.value:
+                        try:
+                            if token.expanded >= expansion_limit:
+                                print("%s:%d:%d: ERROR: the include exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                                exit(1)
+                            rtokens += reversed(lex_file(os.path.join(include_path, token.value), token.expanded + 1))
+                            file_included = True
+                            break
+                        except FileNotFoundError:
+                            continue
+                    else:
+                        try:
+                            if token.expanded >= expansion_limit:
+                                print("%s:%d:%d: ERROR: the include exceeded the expansion limit (it expanded %d times)" % (token.loc + (token.expanded, )), file=sys.stderr)
+                                exit(1)
+                            rtokens += reversed(lex_file(os.path.join(include_path, token.value), token.expanded + 1))
+                            file_included = True
+                            break
+                        except FileNotFoundError:
+                            continue
+                if not file_included:
+                    print("%s:%d:%d: ERROR: file `%s` not found" % (token.loc + (token.value, )), file=sys.stderr)
+                    exit(1)
+            # TODO: capability to define macros from command line
+            elif token.value == Keyword.MACRO:
+                if len(rtokens) == 0:
+                    print("%s:%d:%d: ERROR: expected macro name but found nothing" % token.loc, file=sys.stderr)
+                    exit(1)
+                token = rtokens.pop()
+                if token.typ != TokenType.WORD:
+                    print("%s:%d:%d: ERROR: expected macro name to be %s but found %s" % (token.loc + (tokentype_human_readable_name(TokenType.WORD), tokentype_human_readable_name(token.typ))), file=sys.stderr)
+                    exit(1)
+                assert isinstance(token.value, str), "This is probably a bug in the lexer"
+                if token.value in macros:
+                    print("%s:%d:%d: ERROR: redefinition of already existing macro `%s`" % (token.loc + (token.value, )), file=sys.stderr)
+                    print("%s:%d:%d: NOTE: the first definition is located here" % macros[token.value].loc, file=sys.stderr)
+                    exit(1)
+                if token.value in INTRINSIC_NAMES:
+                    print("%s:%d:%d: ERROR: redefinition of an intrinsic word `%s`. Please choose a different name for your macro." % (token.loc + (token.value, )), file=sys.stderr)
+                    exit(1)
+                macro = Macro(token.loc, [])
+                macros[token.value] = macro
+                nesting_depth = 0
+                while len(rtokens) > 0:
+                    token = rtokens.pop()
+                    if token.typ == TokenType.KEYWORD and token.value == Keyword.END and nesting_depth == 0:
+                        break
+                    else:
+                        macro.tokens.append(token)
+                        if token.typ == TokenType.KEYWORD:
+                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO]:
+                                nesting_depth += 1
+                            elif token.value == Keyword.END:
+                                nesting_depth -= 1
+                if token.typ != TokenType.KEYWORD or token.value != Keyword.END:
+                    print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value, )), file=sys.stderr)
+                    exit(1)
+            else:
+                assert False, 'unreachable';
         else:
             assert False, 'unreachable'
 
-        assert len(OpType) == 42, "Exhaustive ops handling in compile_tokens_to_program. Keep in mind that not all of the ops need to be handled in here. Only those that form blocks."
-        if op.typ == OpType.IF:
-            program.append(op)
-            stack.append(ip)
-            ip += 1
-        elif op.typ == OpType.ELSE:
-            program.append(op)
-            if_ip = stack.pop()
-            if program[if_ip].typ != OpType.IF:
-                print('%s:%d:%d: ERROR: `else` can only be used in `if`-blocks' % program[if_ip].loc)
-                exit(1)
-            program[if_ip].jmp = ip + 1
-            stack.append(ip)
-            ip += 1
-        elif op.typ == OpType.END:
-            program.append(op)
-            block_ip = stack.pop()
-            if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
-                program[block_ip].jmp = ip
-                program[ip].jmp = ip + 1
-            elif program[block_ip].typ == OpType.DO:
-                assert program[block_ip].jmp is not None
-                program[ip].jmp = program[block_ip].jmp
-                program[block_ip].jmp = ip + 1
-            else:
-                print('%s:%d:%d: ERROR: `end` can only close `if`, `else` or `do` blocks for now' % program[block_ip].loc)
-                exit(1)
-            ip += 1
-        elif op.typ == OpType.WHILE:
-            program.append(op)
-            stack.append(ip)
-            ip += 1
-        elif op.typ == OpType.DO:
-            program.append(op)
-            while_ip = stack.pop()
-            program[ip].jmp = while_ip
-            stack.append(ip)
-            ip += 1
-
-        elif op.typ == OpType.INCLUDE:
-            if len(rtokens) == 0:
-                print('%s:%d:%d: ERROR: Expected include file path or a built in library' % op.loc)
-                sys.exit(1)
-
-            token = rtokens.pop()
-            if token.typ != TokenType.STR:
-                print('%s:%d:%d: ERROR: Expected include file path or a built in library path to be a `%s`, but found `%s`' % (op.loc + (
-                                                                                                                tokentype_human_readable_name(TokenType.STR),
-                                                                                                                tokentype_human_readable_name(token.typ))))
-                sys.exit(1)
-            path = token.value
-
-            # builtin_lib_path = "./include"
-
-            if "/" in path:
-                path = path
-            else:
-                path = os.path.join(builtin_lib_path, path)
-
-            if not os.path.exists(path):
-                print('%s:%d:%d: ERROR: Include file `%s` does not exist' % (op.loc + (path,)))
-                sys.exit(1)
-
-
-            rtokens += reversed(lex_file(path))
-
-
-
-        elif op.typ == OpType.MACRO:
-            if len(rtokens) == 0:
-                print("%s:%d:%d: ERROR: expected macro name but found nothing" % op.loc)
-                exit(1)
-            token = rtokens.pop()
-            if token.typ != TokenType.WORD:
-                print("%s:%d:%d: ERROR: expected macro name to be %s but found %s" % (token.loc + (tokentype_human_readable_name(TokenType.WORD), tokentype_human_readable_name(token.typ))))
-                exit(1)
-            if token.value in macros:
-                print("%s:%d:%d: ERROR: redefinition of already existing macro `%s`" % (token.loc + (token.value, )))
-                print("%s:%d:%d: NOTE: the first definition is located here" % macros[token.value].loc)
-                exit(1)
-            if token.value in BUILTIN_WORDS:
-                print("%s:%d:%d: ERROR: redefinition of a builtin word `%s`" % (token.loc + (token.value, )))
-                exit(1)
-            macro = Macro(op.loc, [])
-            macros[token.value] = macro
-
-            # TODO: support for nested blocks within the macro definition
-            while len(rtokens) > 0:
-                token = rtokens.pop()
-                if token.typ == TokenType.WORD and token.value == "end":
-                    break
-                else:
-                    macro.tokens.append(token)
-            if token.typ != TokenType.WORD or token.value != "end":
-                print("%s:%d:%d: ERROR: expected `end` at the end of the macro definition but got `%s`" % (token.loc + (token.value, )))
-                exit(1)
-        else:
-            program.append(op)
-            ip += 1
 
     if len(stack) > 0:
-        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc)
+        print('%s:%d:%d: ERROR: unclosed block' % program[stack.pop()].loc, file=sys.stderr)
         exit(1)
 
     return program
+
 
 def find_col(line: str, start: int, predicate: Callable[[str], bool]) -> int:
     while start < len(line) and not predicate(line[start]):
@@ -899,50 +1335,85 @@ def unescape_string(s: str) -> str:
     # to do this weird round trip
     return s.encode('utf-8').decode('unicode_escape').encode('latin-1').decode('utf-8')
 
-def lex_line(file_path: str, row: int, line: str) -> Generator[Token, None, None]:
-    col = find_col(line, 0, lambda x: not x.isspace())
-    while col < len(line):
-        loc = (file_path, row + 1, col + 1)
-        col_end = None
-        if line[col] == '"':
-            col_end = find_col(line, col+1, lambda x: x == '"')
-            if col_end >= len(line) or line[col_end] != '"':
-                print("%s:%d:%d: ERROR: unclosed string literal" % loc)
-                exit(1)
-            text_of_token = line[col+1:col_end]
-            yield Token(TokenType.STR, loc, unescape_string(text_of_token))
-            col = find_col(line, col_end+1, lambda x: not x.isspace())
-        elif line[col] == "'":
-            col_end = find_col(line, col+1, lambda x: x == "'")
-            if col_end >= len(line) or line[col_end] != "'":
-                print("%s:%d:%d: ERROR: unclosed char literal" % loc)
-                exit(1)
-            text_of_token = line[col+1:col_end]
-            if len(text_of_token) != 1 and ( not text_of_token.startswith("\\") and len(text_of_token) == 2):
-                print("%s:%d:%d: ERROR: char literals can only have 1 character but found %d ('%s')" % (loc + (len(text_of_token),text_of_token)))
-                exit(1)
+def find_string_literal_end(line: str, start: int) -> int:
+    prev = line[start]
+    while start < len(line):
+        curr = line[start]
+        if curr == '"' and prev != '\\':
+            break
+        prev = curr
+        start += 1
+    return start
+
+def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
+    assert len(TokenType) == 5, 'Exhaustive handling of token types in lex_lines'
+    row = 0
+    str_literal_buf = ""
+    while row < len(lines):
+        line = lines[row]
+        col = find_col(line, 0, lambda x: not x.isspace())
+        col_end = 0
+        while col < len(line):
+            loc = (file_path, row + 1, col + 1)
+            if line[col] == '"':
+                while row < len(lines):
+                    start = col
+                    if str_literal_buf == "":
+                        start += 1
+                    else:
+                        line = lines[row]
+                    col_end = find_string_literal_end(line, start)
+                    if col_end >= len(line) or line[col_end] != '"':
+                        str_literal_buf += line[start:]
+                        row +=1
+                        col = 0
+                    else:
+                        str_literal_buf += line[start:col_end]
+                        break
+                if row >= len(lines):
+                    print("%s:%d:%d: ERROR: unclosed string literal" % loc, file=sys.stderr)
+                    exit(1)
+                text_of_token = str_literal_buf
+                str_literal_buf = ""
+                yield Token(TokenType.STR, loc, unescape_string(text_of_token))
+                col = find_col(line, col_end+1, lambda x: not x.isspace())
+            elif line[col] == "'":
+                col_end = find_col(line, col+1, lambda x: x == "'")
+                if col_end >= len(line) or line[col_end] != "'":
+                    print("%s:%d:%d: ERROR: unclosed character literal" % loc, file=sys.stderr)
+                    exit(1)
+                char_bytes = unescape_string(line[col+1:col_end]).encode('utf-8')
+                if len(char_bytes) != 1:
+                    print("%s:%d:%d: ERROR: only a single byte is allowed inside of a character literal" % loc, file=sys.stderr)
+                    exit(1)
+                yield Token(TokenType.CHAR, loc, char_bytes[0])
+                col = find_col(line, col_end+1, lambda x: not x.isspace())
+            else:
+                col_end = find_col(line, col, lambda x: x.isspace())
+                text_of_token = line[col:col_end]
+
+                try:
+                    yield Token(TokenType.INT, loc, int(text_of_token))
+                except ValueError:
+                    if text_of_token in KEYWORD_NAMES:
+                        yield Token(TokenType.KEYWORD, loc, KEYWORD_NAMES[text_of_token])
+                    else:
+                        if text_of_token.startswith("//"):
+                            break
+                        yield Token(TokenType.WORD, loc, text_of_token)
+                col = find_col(line, col_end, lambda x: not x.isspace())
+        row += 1
 
 
-            yield Token(TokenType.CHAR, loc, unescape_string(text_of_token))
-            col = find_col(line, col_end+1, lambda x: not x.isspace())
-        else:
-            col_end = find_col(line, col, lambda x: x.isspace())
-            text_of_token = line[col:col_end]
-            try:
-                yield Token(TokenType.INT, loc, int(text_of_token))
-            except ValueError:
-                yield Token(TokenType.WORD, loc, text_of_token)
-            col = find_col(line, col_end, lambda x: not x.isspace())
-
-
-def lex_file(file_path: str) -> List[Token]:
+def lex_file(file_path: str, expanded: int = 0) -> List[Token]:
     with open(file_path, "r", encoding='utf-8') as f:
-        return [token
-                for (row, line) in enumerate(f.readlines())
-                for token in lex_line(file_path, row, line.split('//')[0])]
+        result = [token for token in lex_lines(file_path, f.readlines())]
+        for token in result:
+            token.expanded = expanded
+        return result
 
-def compile_file_to_program(file_path: str) -> Program:
-    return compile_tokens_to_program(lex_file(file_path))
+def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int) -> Program:
+    return compile_tokens_to_program(lex_file(file_path), include_paths, expansion_limit)
         
 
 # simulate_program(program)
@@ -960,25 +1431,23 @@ def usage(exec):
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
 
-def run_compiled_prog(outfile):
-    print("Running \"%s\":" % outfile);
-    exit_code = subprocess.call(["./" + outfile]);
-
-    if exit_code == 0:
-        print("\n{green}Process exited normally.{reset}".format(
-                                                red = colors.RED,
-                                                green = colors.GREEN,
-                                                reset = colors.RESET,
-                                                underline = colors.UNDERLINE,
-                                                    ))
-    else:
-        print("\n{red}Process exited abnormally with {underline}{code}{reset}{red} exit code.".format(
-                                                                red = colors.RED,
-                                                                green = colors.GREEN,
-                                                                reset = colors.RESET,
-                                                                underline = colors.UNDERLINE,
-                                                                code=exit_code
-                                                                    ))
+def run_compiled_prog(outfile, silent):
+    if silent != True:
+        print("Running \"%s\":" % " ".join(outfile));
+    exit_code = subprocess.call(outfile);
+    if silent != True:
+        if silent != True:
+            print("\n{green}Process exited normally.{reset}".format(
+                                                    green = colors.GREEN,
+                                                    reset = colors.RESET,
+                                                        ))
+        else:
+            print("\n{red}Process exited abnormally with {underline}{code}{reset}{red} exit code.".format(
+                                                                    red = colors.RED,
+                                                                    reset = colors.RESET,
+                                                                    underline = colors.UNDERLINE,
+                                                                    code=exit_code
+                                                                        ))
 
 
 
@@ -990,9 +1459,7 @@ def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir
     elif "\\" in outfile:
         assert False, "{red}Windows support is not implemented{reset}".format(
                                                                 red = colors.RED,
-                                                                green = colors.GREEN,
                                                                 reset = colors.RESET,
-                                                                underline = colors.UNDERLINE,
                                                                     )
     os.makedirs(basepath + build_dir, exist_ok = True)
     os.makedirs(basepath + obj_dir, exist_ok = True)
@@ -1010,13 +1477,11 @@ if __name__ == "__main__":
         usage(prog);
         print("{red}[ERR]: Not enough arguments. Exiting!{reset}".format(
                                                             red = colors.RED,
-                                                            green = colors.GREEN,
                                                             reset = colors.RESET,
-                                                            underline = colors.UNDERLINE,
-                                                                ))
+                                                                ), file=sys.stderr)
         sys.exit(1);
 
-
+    argv2 = sys.argv[3:]
     subc, *argv = argv
     input_filepath = ""
     global outfile
@@ -1024,11 +1489,11 @@ if __name__ == "__main__":
     b_run = False
     b_outfile = False
     b_remove = False
+    b_silent = False
     i_dumpmem = 0
     for flag in argv:
         if b_outfile == True:
             b_outfile == False
-            
             outfile = flag
             continue
         if i_dumpmem == -1:
@@ -1038,15 +1503,22 @@ if __name__ == "__main__":
         if flag.startswith("-"):
             if flag == "-h" or flag == "--help":
                 usage(prog);
-                sys.exit(1);
+                sys.exit(0);
 
             elif flag == "-r" or flag == "--run":
+                argv2.pop(0)
                 b_run = True
             elif flag == "-o":
+                argv2.pop(0)
                 b_outfile = True
+            elif flag == "-s":
+                argv2.pop(0)
+                b_silent = True
             elif flag == "-rm" or flag == "--remove":
+                argv2.pop(0)
                 b_noremove = True
             elif flag == "-dm" or flag == "--dump-memory":
+                argv2.pop(0)
                 i_dumpmem = -1
             else:
                 print("{red}[ERR]: Unknown flag {green}{underline}\"{flag}\"{reset}{red}. Exiting!{reset}".format(
@@ -1055,19 +1527,19 @@ if __name__ == "__main__":
                                                                 reset = colors.RESET,
                                                                 underline = colors.UNDERLINE,
                                                                 flag=flag
-                                                                    ));
+                                                                    ), file=sys.stderr);
                 sys.exit(1);
         else:
-            input_filepath = flag
-        
+            if input_filepath == "":
+                input_filepath = flag
+            break
+    # print(input_filepath)
     if input_filepath == "":
         usage(prog)
         print("{red}[ERR]: No file supplied. Exiting!{reset}".format(
                                                     red = colors.RED,
-                                                    green = colors.GREEN,
                                                     reset = colors.RESET,
-                                                    underline = colors.UNDERLINE,
-                                                        ));
+                                                        ), file=sys.stderr);
         sys.exit(1)
     outfile = ".".join(input_filepath.split(".")[:-1])
 
@@ -1076,19 +1548,20 @@ if __name__ == "__main__":
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
 
-        program = compile_file_to_program(input_filepath);
-        simulate_little_endian_linux(program, i_dumpmem)
+        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION);
+        type_check_program(program, "simulate")
+        simulate_little_endian_linux(program, i_dumpmem, [build_path] + argv2)
     elif subc == "c" or subc == "com" or subc == "compile":
-
-        program = compile_file_to_program(input_filepath);
+        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION);
+        type_check_program(program, "compile")
         generate_nasm_linux_x86_64(program, asm_path)
-        run_cmd(["nasm", "-felf64", "-o", obj_path, asm_path])
-        run_cmd(["ld", "-o", build_path, obj_path])
+        run_cmd(["nasm", "-felf64", "-o", obj_path, asm_path], b_silent)
+        run_cmd(["ld", "-o", build_path, obj_path], b_silent)
 
         if b_remove == True:
-            run_cmd(["rm", "-f", asm_path, obj_path])
+            run_cmd(["rm", "-f", asm_path, obj_path], b_silent)
         if b_run == True:
-            run_compiled_prog(build_path)
+            run_compiled_prog([build_path] + argv2, b_silent)
     else:
         usage(prog);
 
@@ -1098,5 +1571,5 @@ if __name__ == "__main__":
                                                                 reset = colors.RESET,
                                                                 underline = colors.UNDERLINE,
                                                                 subcommand = subc
-                                                                    ));
+                                                                    ), file=sys.stderr);
         sys.exit(1);

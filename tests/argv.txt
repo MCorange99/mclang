@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 51
+./tests/argv.mcl:7:3: ERROR: unknown word `stdout`
+

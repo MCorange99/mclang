@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 82
+./tests/no-macro-name-error.mcl:1:1: ERROR: expected macro name but found nothing
+

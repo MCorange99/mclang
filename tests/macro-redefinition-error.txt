@@ -1,0 +1,7 @@
+: returncode 1
+: stdout 0
+
+: stderr 180
+./tests/macro-redefinition-error.mcl:2:7: ERROR: redefinition of already existing macro `test`
+./tests/macro-redefinition-error.mcl:1:7: NOTE: the first definition is located here
+

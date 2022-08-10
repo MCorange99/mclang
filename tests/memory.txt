@@ -1,2 +1,6 @@
-abc
-bcd
+: returncode 1
+: stdout 0
+
+: stderr 53
+./tests/memory.mcl:4:12: ERROR: unknown word `write`
+

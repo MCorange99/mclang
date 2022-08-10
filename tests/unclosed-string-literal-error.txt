@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 78
+./tests/unclosed-string-literal-error.mcl:1:1: ERROR: unclosed string literal
+

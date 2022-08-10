@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 87
+./tests/self-including-file.mcl:1:9: ERROR: file `./self-including-file.mcl` not found
+

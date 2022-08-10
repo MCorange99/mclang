@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 119
+./tests/multi-byte-character-literal-error.mcl:1:1: ERROR: only a single byte is allowed inside of a character literal
+
