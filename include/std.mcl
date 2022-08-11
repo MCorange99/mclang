@@ -15,7 +15,7 @@ macro eputs
 end
 
 macro exit
-    SYS_exit syscall1
+    SYS_exit syscall1 drop
 end
 
 // macro write

@@ -238,7 +238,7 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
             else:
                 ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 34, "Exhaustive handling of intrinsic in simulate_little_endian_linux()" + str(len(Intrinsic))
+            assert len(Intrinsic) == 33, "Exhaustive handling of intrinsic in simulate_little_endian_linux()" + str(len(Intrinsic))
             if op.operand == Intrinsic.PLUS:
                 a = stack.pop()
                 b = stack.pop()
@@ -446,7 +446,7 @@ def type_check_program(program: Program, mode: str):
             stack.append(Type.INT)
             stack.append(Type.PTR)
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 34, "Exhaustive intrinsic handling in type_check_program"
+            assert len(Intrinsic) == 33, "Exhaustive intrinsic handling in type_check_program"
             if op.operand == Intrinsic.PLUS:
                 if len(stack) < 2:
                     eprint("{}:{}:{} ERR: The `+` intrinsic requires 2 arguments but {} were provided".format(op.loc[0], op.loc[1], op.loc[2], len(stack)))
@@ -848,7 +848,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 34, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64()"
+                assert len(Intrinsic) == 33, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64()"
                 if op.operand == Intrinsic.PLUS:
                     out.write("    ;; -- plus --\n")
                     out.write("    pop rax\n")
@@ -1101,7 +1101,7 @@ KEYWORD_NAMES = {
 }
 
 
-assert len(Intrinsic) == 34, "Exhaustive INTRINSIC_NAMES definition"
+assert len(Intrinsic) == 33, "Exhaustive INTRINSIC_NAMES definition"
 INTRINSIC_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1425,6 +1425,7 @@ def usage(exec):
     print("    s, sim, simulate                    => Simulate/interpret the program.")
     print("FLAGS:")
     print("    -h, --help                          => Show this help text.")
+    print("    --no-typecheck                      => Skip type checking the source code")
     print("    -r, --run                           => Run the program after compiling. Only relavent in compile mode.")
     print("    -rm, --remove                       => Remove the out.asm and out.o files. Only relavent in compile mode.")
     print("    -o [FILENAME]                       => The name of the compile program.")
@@ -1436,7 +1437,7 @@ def run_compiled_prog(outfile, silent):
         print("Running \"%s\":" % " ".join(outfile));
     exit_code = subprocess.call(outfile);
     if silent != True:
-        if silent != True:
+        if exit_code == 0:
             print("\n{green}Process exited normally.{reset}".format(
                                                     green = colors.GREEN,
                                                     reset = colors.RESET,
@@ -1448,6 +1449,7 @@ def run_compiled_prog(outfile, silent):
                                                                     underline = colors.UNDERLINE,
                                                                     code=exit_code
                                                                         ))
+    return exit_code
 
 
 
@@ -1490,6 +1492,7 @@ if __name__ == "__main__":
     b_outfile = False
     b_remove = False
     b_silent = False
+    b_no_type_check = False
     i_dumpmem = 0
     for flag in argv:
         if b_outfile == True:
@@ -1508,6 +1511,9 @@ if __name__ == "__main__":
             elif flag == "-r" or flag == "--run":
                 argv2.pop(0)
                 b_run = True
+            elif flag == "--no-typecheck":
+                argv2.pop(0)
+                b_no_type_check = True
             elif flag == "-o":
                 argv2.pop(0)
                 b_outfile = True
@@ -1549,11 +1555,13 @@ if __name__ == "__main__":
     if subc == "s" or subc == "sim" or subc == "simulate":
 
         program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION);
-        type_check_program(program, "simulate")
+        if b_no_type_check != True:
+            type_check_program(program, "simulate")
         simulate_little_endian_linux(program, i_dumpmem, [build_path] + argv2)
     elif subc == "c" or subc == "com" or subc == "compile":
         program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION);
-        type_check_program(program, "compile")
+        if b_no_type_check != True:
+            type_check_program(program, "compile")
         generate_nasm_linux_x86_64(program, asm_path)
         run_cmd(["nasm", "-felf64", "-o", obj_path, asm_path], b_silent)
         run_cmd(["ld", "-o", build_path, obj_path], b_silent)
@@ -1561,7 +1569,8 @@ if __name__ == "__main__":
         if b_remove == True:
             run_cmd(["rm", "-f", asm_path, obj_path], b_silent)
         if b_run == True:
-            run_compiled_prog([build_path] + argv2, b_silent)
+            exit_code = run_compiled_prog([build_path] + argv2, b_silent)
+            exit(exit_code)
     else:
         usage(prog);
 
