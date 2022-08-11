@@ -1,6 +1,8 @@
-: returncode 1
-: stdout 0
+: returncode 0
+: stdout 29
+abc
+bcd
+18446744073709551615
 
-: stderr 53
-./tests/memory.mcl:4:12: ERROR: unknown word `write`
+: stderr 0
 

@@ -1,6 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 98
-./tests/no-include-file-error.mcl:1:1: ERROR: expected path to the include file but found nothing
+: stderr 174
+[31m[4m./tests/no-include-file-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31mexpected path to the include file but found nothing[0m
 

@@ -1,2 +1,58 @@
 store => .
 load => ,
+
+elif op.typ == OpType.END:
+            expected_stack, block_type = block_stack.pop()
+            expected_types = list(map(lambda x: x[0], expected_stack))
+            actual_types = list(map(lambda x: x[0], stack))
+            assert len(OpType) == 8, "Exhaustive handling of op types"
+            if block_type == OpType.IF:
+                if expected_types != actual_types:
+                    eprint("`if` blocks without `else` are not allowed to alter the types of the arguments on the data stack", op.token.loc)
+                    errors += 1
+                    nprint("Expected types:")
+                    for i in range(len(expected_types)):
+                        s = expected_types[i]
+                        print("{blue}    {num}. type: {type}, position: {pos}{rs}".format(type = str(s[0]), pos = str(s[1][0])+":"+str(s[1][1])+":"+str(s[1][2]), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+                    nprint("Actual types:")
+                    for i in range(len(stack)):
+                        s = stack[i]
+                        print("{blue}    {num} type: {type}, position: {pos}{rs}".format(type = str(s[0]), pos = str(s[1][0])+":"+str(s[1][1])+":"+str(s[1][2]), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+            elif block_type == OpType.ELSE:
+                if expected_types != actual_types:
+                    eprint("Both branches of `if-else` block must produce the same type of arguments on the data stack", op.token.loc)
+                    nprint("Expected types:")
+                    for i in range(len(expected_types)):
+                        s = expected_types[i]
+                        print("{blue}    {num}. type: {type}, position: {pos}{rs}".format(type = str(s[0]), pos = str(s[1][0])+":"+str(s[1][1])+":"+str(s[1][2]), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+                    nprint("Actual types:")
+                    for i in range(len(stack)):
+                        s = stack[i]
+                        print("{blue}    {num} type: {type}, position: {pos}{rs}".format(type = str(s[0]), pos = str(s[1][0])+":"+str(s[1][1])+":"+str(s[1][2]), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+                    
+            elif block_type == OpType.DO:
+                # print(stack)
+                if len(stack) < 1:
+                    eprint("The `load` operation requires 1 `argument but {} were provided".format(len(stack)), op.token.loc)
+                    errors += 1
+                    exit(1)
+                a_type, a_token = stack.pop()
+                print(a_type)
+                if a_type != DataType.BOOL:
+                    eprint("The `do` operation requires 1 `bool` argument but {} were provided".format(getTypeHuman(a_type)), op.token.loc)
+                    errors += 1
+                expected_stack, block_type = block_stack.pop()
+                assert block_type == OpType.WHILE
+                expected_types = list(map(lambda x: x[0], expected_stack))
+                actual_types = list(map(lambda x: x[0], stack))
+                if expected_types != actual_types:
+                    eprint("`while-do` body are not allowed to alter the types of the arguments on the data stack", op.token.loc)
+                    nprint("Expected types:")
+                    for i in range(len(expected_types)):
+                        s = expected_types[i]
+                        print("{blue}    {num}. type: {type}".format(type = str(s), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+                    nprint("Actual types:")
+                    for i in range(len(stack)):
+                        s = stack[i]
+                        print("{blue}    {num}. type: {type}".format(type = str(s[0]), rs=colors.RESET, blue=colors.BLUE, num=i+1))
+                block_stack.append((copy(stack), op.typ))

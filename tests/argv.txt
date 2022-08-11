@@ -1,6 +1,6 @@
-: returncode 1
-: stdout 0
+: returncode 0
+: stdout 19
+./tests/build/argv
 
-: stderr 51
-./tests/argv.mcl:7:3: ERROR: unknown word `stdout`
+: stderr 0
 

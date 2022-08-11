@@ -1,6 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 114
-./tests/mutually-recursive-macros.mcl:2:3: ERROR: the macro exceeded the expansion limit (it expanded 1000 times)
+: stderr 190
+[31m[4m./tests/mutually-recursive-macros.mcl[0m[32m:[31m[4m2[0m[32m:[31m[4m3[0m [32m[[31mERR[32m][0m: [31mthe macro exceeded the expansion limit (it expanded 1000 times)[0m
 

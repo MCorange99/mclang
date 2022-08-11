@@ -1,6 +1,11 @@
 
 include "linux.mcl"
 
+//idk what these do
+
+// macro AT_FDCWD -100 end
+// macro O_RDONLY 0 end
+
 macro STD_IN 0 end
 macro STD_OUT 1 end
 macro STD_ERR 2 end
@@ -36,12 +41,16 @@ macro div / end
 macro ++ 1 + end
 macro -- 1 - end
 
+macro nth_argv
+  8 * argv + load64 cast(ptr)
+end
+
 macro inc64
-    dup load64 1 + store64
+  dup load64 1 + store64
 end
 
 macro strlen
-    0 swap while dup load 0 != do
-        1 + swap 1 + swap
-    end drop 
+  dup
+  while dup load 0 != do 1 + end
+  swap -
 end

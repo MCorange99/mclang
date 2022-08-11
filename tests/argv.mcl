@@ -1,10 +1,10 @@
 include "./std.mcl"
 
-argv
-argc
-while dup 0 > do
-  over load64 dup strlen swap
-  stdout write drop
-  "\n" stdout write drop
-  1 - swap 8 + swap
-end
+0 while dup argc < do
+  dup nth_argv strlen
+  over nth_argv puts
+
+  "\n" puts
+
+  1 +
+end drop

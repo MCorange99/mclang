@@ -1,6 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 115
-./tests/wrong-include-path-type-error.mcl:1:9: ERROR: expected path to the include file to be string but found int
+: stderr 191
+[31m[4m./tests/wrong-include-path-type-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m9[0m [32m[[31mERR[32m][0m: [31mexpected path to the include file to be string but found int[0m
 

@@ -18,6 +18,7 @@ macro even_fibs
     end
     swap over +
   end
+  drop drop
 end
 
 "------------------------------\n" puts

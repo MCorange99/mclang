@@ -1,25 +1,25 @@
 include "std.mcl"
 
-"Addition:\n" stdout write
+"Addition:\n" puts
 34 35 + print
 
-"------------------------------\n" stdout write
+"------------------------------\n" puts
 
-"Subtraction:\n" stdout write
+"Subtraction:\n" puts
 500 80 - print
 
-"------------------------------\n" stdout write
+"------------------------------\n" puts
 
-"Divison:\n" stdout write
+"Divison:\n" puts
 69000 1000 / print
 
-"------------------------------\n" stdout write
+"------------------------------\n" puts
 
-"Modulo:\n" stdout write
+"Modulo:\n" puts
 5 100 mod print
 104 100 mod print
 
-"------------------------------\n" stdout write
+"------------------------------\n" puts
 
-"Multiplication:\n" stdout write
+"Multiplication:\n" puts
 42 10 * print

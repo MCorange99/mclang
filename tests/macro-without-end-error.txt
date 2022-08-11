@@ -1,6 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 122
-./tests/macro-without-end-error.mcl:2:1: ERROR: expected `end` at the end of the macro definition but got `Keyword.MACRO`
+: stderr 198
+[31m[4m./tests/macro-without-end-error.mcl[0m[32m:[31m[4m2[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31mexpected `end` at the end of the macro definition but got `Keyword.MACRO`[0m
 
