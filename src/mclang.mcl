@@ -1,0 +1,153 @@
+include "std.mcl"
+include "./asm_utils.mcl"
+
+// config
+macro MEM_SIZE 640000 end
+macro PUTD_BUFFER_CAP 32 end
+macro SIM_STACK_CAP 1024 end
+
+macro OP_PUSH_INT 0 end
+macro OP_PLUS 1 end
+macro OP_PRINT 2 end
+
+
+// memory layout
+macro putd_buff mem end
+macro sim_stack_count putd_buff PUTD_BUFFER_CAP + end
+macro sim_stack sim_stack_count 8 + end
+macro ops_count sim_stack SIM_STACK_CAP 8 * + end
+macro ops ops_count 8 + end
+
+macro sim_stack_push
+    sim_stack_count @64 SIM_STACK_CAP >= if
+        here ": ERROR: data stack overflow in simulation mode" eputs eputs 
+    end
+    
+    sim_stack sim_stack_count @64 8 * + !64
+    sim_stack_count inc64
+    
+end
+
+macro sim_stack_pop
+    sim_stack_count @64 0 = if
+        here ": ERROR: data stack underflow in simulation mode" eputs eputs 
+    end
+    sim_stack_count dec64
+
+    sim_stack sim_stack_count @64 8 *  +  @64
+end
+
+macro putd
+  dup 0 = if
+    "0" puts
+  else
+    putd_buff PUTD_BUFFER_CAP +
+    while over 0 > do
+      1 - dup rot
+      10 divmod
+      rot swap '0' + store swap
+    end
+
+    dup
+    putd_buff PUTD_BUFFER_CAP + swap - swap puts
+  end
+  drop
+end
+
+macro sizeof(Op) 16 end
+
+macro push_op
+    // 0: int 16: int
+    ops_count @64 sizeof(Op) * ops +
+    dup 8 + rot swap !64
+    !64
+    ops_count inc64
+end
+
+macro dump_ops()
+    0 while dup ops_count @64 < do
+        dup sizeof(Op) * OPS +
+        "Type: "    puts dup     @64 print
+        "Operand: " puts 8 + @64 print
+        "-------------\n" puts
+        1 +
+    end
+    drop
+end
+
+//struct Op {
+//    type: u64,
+//    operand: u64      
+//}
+
+macro simulate_ops
+    0 while dup ops_count @64 < do
+        dup sizeof(Op) * ops +
+        
+        dup @64 OP_PUSH_INT = if
+            dup 8 + @64 sim_stack_push
+        else dup @64 OP_PLUS = if
+            sim_stack_pop // a
+            sim_stack_pop // b
+            +
+            sim_stack_push // a + b
+        else dup @64 OP_PRINT = if
+            sim_stack_pop
+            print
+        else
+            "Unreachable" here false assert
+        end end end
+        drop 
+        1 +
+    end // while
+    drop
+end
+
+macro compile_ops
+    "BITS 64\n" puts
+    asm_utils.print
+    "global _start\n" puts
+    "_start:\n" puts
+    "    mov [args_ptr], rsp\n" puts
+    0 while dup ops_count @64 < do
+        dup sizeof(Op) * ops +
+        
+        dup @64 OP_PUSH_INT = if
+            "    ; -- push int " puts dup 8 + @64 putd " --\n" puts
+            "    mov rax, " puts dup 8 + @64 putd "\n" puts
+            "    push rax\n" puts
+        else dup @64 OP_PLUS = if
+            "    ; -- plus --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    add rax, rbx\n" puts
+            "    push rax\n" puts
+        else dup @64 OP_PRINT = if
+            "    ; -- print --\n" puts
+            "    pop rdi\n" puts
+            "    call print\n" puts
+        else
+            "Unreachable" here false assert
+        end end end
+        drop
+        1 +
+    end // while
+    drop
+
+    "addr_%d:\n" puts
+    "    mov rax, 60\n" puts
+    "    mov rdi, 0\n" puts
+    "    syscall\n" puts
+    // strings
+    "segment .data\n" puts
+    "segment .bss\n" puts
+    "    args_ptr: resq 1\n" puts
+    "    mem: resb " puts MEM_SIZE putd "\n" puts
+end // macro
+
+OP_PUSH_INT 34 push_op
+OP_PUSH_INT 35 push_op
+OP_PLUS      0 push_op
+OP_PRINT     0 push_op
+
+simulate_ops
