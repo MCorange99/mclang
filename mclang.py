@@ -1860,9 +1860,9 @@ def usage(exec):
     print("    s, sim, simulate                    => Simulate/interpret the program.")
     print("FLAGS:")
     print("    -h, --help                          => Show this help text.")
-    print("    --no-typecheck                      => Skip type checking the source code")
+    print("    --unsafe                            => Skip type checking the source code")
     print("    -r, --run                           => Run the program after compiling. Only relavent in compile mode.")
-    print("    -rm, --remove                       => Remove the out.asm and out.o files. Only relavent in compile mode.")
+    print("    -nrm, --no-remove                       => Remove the out.asm and out.o files. Only relavent in compile mode.")
     print("    -o [FILENAME]                       => The name of the compile program.")
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
@@ -1948,7 +1948,7 @@ if __name__ == "__main__":
             elif flag == "-r" or flag == "--run":
                 argv2.pop(0)
                 b_run = True
-            elif flag == "--no-typecheck":
+            elif flag == "--unsafe":
                 argv2.pop(0)
                 b_no_type_check = True
             elif flag == "-o":
@@ -1957,7 +1957,7 @@ if __name__ == "__main__":
             elif flag == "-s":
                 argv2.pop(0)
                 b_silent = True
-            elif flag == "-rm" or flag == "--remove":
+            elif flag == "-nrm" or flag == "--no-remove":
                 argv2.pop(0)
                 b_noremove = True
             elif flag == "-dm" or flag == "--dump-memory":

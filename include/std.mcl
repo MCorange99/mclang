@@ -78,5 +78,24 @@ macro assert
     end
 end
 
+macro streq
+    while 
+        over load 0 != 
+        over load 0 !=
+        and if 
+            over load over load = 
+        else 
+            false 
+        end
+    do
+        1 +
+        swap 1 +
+    end
+
+    load 0 = 
+    swap load 0 =
+    and
+end
+
 
 
