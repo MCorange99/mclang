@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-echo "Are you sure you want to install mcLang to '~/.mclang' (y/n): "
+echo "Are you sure you want to install mcLang to '~/.mclang? THis will also delete any existing installs!' (y/n): "
 read b_install
 
 if [ $b_install != "y" ]
@@ -12,6 +12,7 @@ fi
 
 
 echo "[cmd]: mkdir \"$HOME/.mclang\""
+rm -rf "$HOME/.mclang"
 mkdir -p "$HOME/.mclang"
 echo "[cmd]: cd $HOME/.mclang"
 pushd "$HOME/.mclang" 1> /dev/null 2> /dev/null
@@ -22,17 +23,17 @@ read s_git_type
 
 if [ $s_git_type = "ssh" ] 
 then
-    echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git . -b latest"
+    echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git ."
     git clone https://github.com/MCorange99/mcLang.git .
 elif [ $s_git_type = "https" ] 
 then
-    echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git . -b latest"
+    echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git ."
     git clone https://github.com/MCorange99/mcLang.git .
 else
     echo "Unknown Type $s_git_type."
     exit
 fi
-
+rm -r "$HOME/.mclang/*"
 cp mclang.py mclang
 chmod +x mclang
 
