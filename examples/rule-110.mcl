@@ -6,7 +6,7 @@ mem BOARD_SIZE 2 - + 1 store
 
 0 while dup BOARD_SIZE 2 - < do
    0 while dup BOARD_SIZE < do
-      dup mem + load if
+      if dup mem + load cast(bool) do
          dup mem + BOARD_SIZE + '#' store
       else
          dup mem + BOARD_SIZE + ' ' store
@@ -18,7 +18,7 @@ mem BOARD_SIZE 2 - + 1 store
 
    // pattern
    mem     load 1 <<
-   mem 1 + load |
+   mem 1 + load or
 
    1 while dup BOARD_SIZE 2 -  < do
       swap 1 << 7 &

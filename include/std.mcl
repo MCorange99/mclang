@@ -157,12 +157,16 @@ macro putd // u64 --
   drop
 end
 
+// QoL words
+macro << shl end
+macro >> shr end
+
 // Deprecated Words
 macro .64 swap !64 end
 macro ,64 @64 end
 macro ! !8 end
 macro @ @8 end
-macro . swap ! end
-macro , @ end
+macro store swap ! end
+macro load @ end
 macro cstr-to-pstr cstr-to-str end
 memory mem 640000 end
