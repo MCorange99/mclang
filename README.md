@@ -96,7 +96,7 @@ Push to memory with address 0 the number 97 (`a` in ascii)
 mem 0 + 97 store
 ```
 
-`mem`   load the whole memory  
+`mem`   load the whole memory   
 `0 +`   select the memory address  
 `97`    push `97` to stack  
 `store` store the value on the top of the stack to the selected memory address  
