@@ -1,7 +1,7 @@
 : returncode 1
-: stdout 0
+: stdout 73
+[32m[[34mNOTE[34m][0m: [34mthe first definition is located here[0m
 
-: stderr 333
+: stderr 171
 [31m[4m./tests/macro-redefinition-error.mcl[0m[32m:[31m[4m2[0m[32m:[31m[4m7[0m [32m[[31mERR[32m][0m: [31mredefinition of already existing macro `test`[0m
-[31m[4m./tests/macro-redefinition-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m7[0m [32m[[31mERR[32m][0m: [31mthe first definition is located here[0m
 

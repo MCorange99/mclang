@@ -1,8 +1,3 @@
-include "std.mcl"
 
-59 // push the data you want to store to the stack
-mem //gives initial memory pointer
-0 + // increment the memory pointer (I add 0 which does nothing but its good practice)
-!8
-
-mem 0 + @8 print
+69 420 + dup dup dup dup 
+print print print print print

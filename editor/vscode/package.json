@@ -1,0 +1,32 @@
+{
+  "name": "mclang-code-highlighting",
+  "displayName": "MCLang Code Highlighting",
+  "description": "",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "vsce package"
+  },
+  "repository": {
+    "type": "github",
+    "url": "https://github.com/MCorange99/mcLang"
+  },
+  "engines": {
+    "vscode": "^1.69.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "mclang",
+      "aliases": ["MCLang", "mclang"],
+      "extensions": [".mcl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "mclang",
+      "scopeName": "source.mcl",
+      "path": "./syntaxes/mclang.tmLanguage.json"
+    }]
+  }
+}

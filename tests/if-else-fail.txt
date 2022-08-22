@@ -1,0 +1,6 @@
+: returncode 1
+: stdout 0
+
+: stderr 168
+[31m[4m./tests/if-else-fail.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m34[0m [32m[[31mERR[32m][0m: [31munhandled data on the data stack: [<DataType.INT: 1>][0m
+

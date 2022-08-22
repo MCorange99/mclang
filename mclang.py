@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from copy import copy
+from curses import intrflush
 from genericpath import exists
 import sys
 import subprocess
@@ -12,7 +13,6 @@ from time import sleep
 
 builtin_lib_path = ["./include"]
 
-MEM_CAPACITY = 640_000 # should be enough
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
 MAX_MACRO_EXPANSION = 1000
@@ -58,6 +58,7 @@ class colors:
     BEIGE2     = '\33[96m'
     WHITE2     = '\33[97m'
 
+
 def eprint(txt, loc=None):
     if loc != None:
         print("{red}{lnk}{fn}{rs}{green}:{red}{lnk}{ln}{rs}{green}:{red}{lnk}{col}{rs} {green}[{red}ERR{green}]{rs}: {red}{text}{rs}".format(
@@ -98,7 +99,7 @@ def not_enough_arguments(op):
         assert False, "unsupported type of operation"
 
 def compiler_error(loc, txt):
-    eprint(txt, loc)
+    eprint(txt, loc.loc)
 
 def compiler_note(loc, txt):
     nprint(txt)
@@ -110,10 +111,12 @@ class Keyword(Enum):
     # Ops that form blocks
     IF = auto();
     ELSE = auto();
+    ELIF = auto();
     DO = auto();
     END = auto();
     WHILE = auto();
     MACRO = auto();
+    MEMORY = auto();
 
     #other
     INCLUDE = auto();
@@ -147,15 +150,14 @@ class Intrinsic(Enum):
     ROT=auto()
 
     # memory
-    MEM=auto()
-    LOAD=auto()
-    STORE=auto()
+    LOAD8=auto()
+    STORE8=auto()
+    LOAD16=auto()
+    STORE16=auto()
+    LOAD32=auto()
+    STORE32=auto()
     LOAD64=auto()
     STORE64=auto()
-    FORTH_LOAD=auto()
-    FORTH_STORE=auto()
-    FORTH_LOAD64=auto()
-    FORTH_STORE64=auto()
 
     # syscalls
     SYSCALL0=auto()
@@ -170,15 +172,20 @@ class Intrinsic(Enum):
     ARGC=auto()
     ARGV=auto()
     CAST_PTR=auto()
+    CAST_INT=auto()
+    CAST_BOOL=auto()
     HERE=auto()
 
 class OpType(Enum):
     PUSH_INT=auto()
+    PUSH_MEM=auto()
     PUSH_STR=auto()
+    PUSH_CSTR=auto()
     INTRINSIC=auto()
     IF=auto()
     END=auto()
     ELSE=auto()
+    ELIF = auto();
     WHILE=auto()
     DO=auto()
 
@@ -187,6 +194,7 @@ class TokenType(Enum):
     WORD = auto();
     INT = auto();
     STR = auto();
+    CSTR = auto();
     CHAR = auto();
     KEYWORD = auto();
 
@@ -205,10 +213,13 @@ class Op:
     token: Token
     operand: Optional[Union[int, str, Intrinsic, OpAddr]] = None
 
-Program = List[Op]
+@dataclass
+class Program:
+    ops: List[Op]
+    memory_capacity: int
 
 
-def run_cmd(cmd, silent):
+def run_cmd(cmd, silent=False):
     if silent != True:
         print("[CMD]: %s" % ' '.join(cmd));
     subprocess.call(cmd);
@@ -227,7 +238,7 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
     CLOCK_MONOTONIC=1
 
     stack: List[int] = []
-    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + MEM_CAPACITY)
+    mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + program.memory_capacity)
 
     str_buf_ptr  = SIM_NULL_POINTER_PADDING
     str_ptrs: Dict[int, int] = {}
@@ -256,9 +267,9 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
         assert argc*8 <= SIM_ARGV_CAPACITY, "Argv buffer, overflow"
 
     ip = 0
-    while ip < len(program):
-        assert len(OpType) == 8, "Exhaustive op handling in simulate_little_endian_linux"
-        op = program[ip]
+    while ip < len(program.ops):
+        assert len(OpType) == 11, "Exhaustive op handling in simulate_little_endian_linux"
+        op = program.ops[ip]
         try:
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
@@ -277,30 +288,43 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     assert str_size <= SIM_STR_CAPACITY, "String buffer overflow"
                 stack.append(str_ptrs[ip])
                 ip += 1
+            elif op.typ == OpType.PUSH_CSTR:
+                assert isinstance(op.operand, str), "This could be a bug in the parsing step"
+                value = op.operand.encode('utf-8') + b'\0'
+                n = len(value)
+                if ip not in str_ptrs:
+                    str_ptr = str_buf_ptr+str_size
+                    str_ptrs[ip] = str_ptr
+                    mem[str_ptr:str_ptr+n] = value
+                    str_size += n
+                    assert str_size <= SIM_STR_CAPACITY, "String buffer overflow"
+                stack.append(str_ptrs[ip])
+                ip += 1
+            elif op.typ == OpType.PUSH_MEM:
+                stack.append(mem_buf_ptr + op.operand)
+                ip += 1
             elif op.typ == OpType.IF:
-                a = stack.pop()
-                if a == 0:
-                    assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-                    ip = op.operand
-                else:
-                    ip += 1
-            elif op.typ == OpType.ELSE:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-                ip = op.operand
-            elif op.typ == OpType.END:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
-                ip = op.operand
+                ip += 1
             elif op.typ == OpType.WHILE:
                 ip += 1
+            elif op.typ == OpType.ELSE:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ip = op.operand
+            elif op.typ == OpType.ELIF:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ip = op.operand
+            elif op.typ == OpType.END:
+                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
+                ip = op.operand
             elif op.typ == OpType.DO:
                 a = stack.pop()
                 if a == 0:
-                    assert isinstance(op.operand, OpAddr), "This could be a bug in the compilation step"
+                    assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
                     ip = op.operand
                 else:
                     ip += 1
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 43, "Exhaustive handling of intrinsic in simulate_little_endian_linux()"
+                assert len(Intrinsic) == 44, "Exhaustive handling of intrinsic in simulate_little_endian_linux() " + str(len(Intrinsic)) 
                 if op.operand == Intrinsic.PLUS:
                     a = stack.pop()
                     b = stack.pop()
@@ -315,12 +339,6 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     a = stack.pop()
                     b = stack.pop()
                     stack.append(b * a)
-                    ip += 1
-                elif op.operand == Intrinsic.TRUE:
-                    stack.append(1)
-                    ip += 1
-                elif op.operand == Intrinsic.FALSE:
-                    stack.append(0)
                     ip += 1
                 elif op.operand == Intrinsic.DIVMOD:
                     a = stack.pop()
@@ -416,28 +434,33 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     stack.append(a)
                     stack.append(c)
                     ip += 1
-                elif op.operand == Intrinsic.MEM:
-                    stack.append(mem_buf_ptr)
-                    ip += 1
-                elif op.operand == Intrinsic.LOAD:
+                elif op.operand == Intrinsic.LOAD8:
                     addr = stack.pop()
                     byte = mem[addr]
                     stack.append(byte)
                     ip += 1
-                elif op.operand == Intrinsic.STORE:
-                    store_value = stack.pop()
-                    store_addr = stack.pop()
-                    mem[store_addr] = store_value & 0xFF
-                    ip += 1
-                elif op.operand == Intrinsic.FORTH_LOAD:
-                    addr = stack.pop()
-                    byte = mem[addr]
-                    stack.append(byte)
-                    ip += 1
-                elif op.operand == Intrinsic.FORTH_STORE:
+                elif op.operand == Intrinsic.STORE8:
                     store_addr = stack.pop()
                     store_value = stack.pop()
                     mem[store_addr] = store_value & 0xFF
+                    ip += 1
+                elif op.operand == Intrinsic.LOAD16:
+                    load_addr = stack.pop()
+                    stack.append(int.from_bytes(mem[load_addr:load_addr+2], byteorder="little"))
+                    ip += 1
+                elif op.operand == Intrinsic.STORE16:
+                    store_addr = stack.pop();
+                    store_value = stack.pop()
+                    mem[store_addr:store_addr+2] = store_value.to_bytes(length=2, byteorder="little", signed=(store_value < 0));
+                    ip += 1
+                elif op.operand == Intrinsic.LOAD32:
+                    load_addr = stack.pop()
+                    stack.append(int.from_bytes(mem[load_addr:load_addr+4], byteorder="little"))
+                    ip += 1
+                elif op.operand == Intrinsic.STORE32:
+                    store_addr = stack.pop();
+                    store_value = stack.pop()
+                    mem[store_addr:store_addr+4] = store_value.to_bytes(length=4, byteorder="little", signed=(store_value < 0));
                     ip += 1
                 elif op.operand == Intrinsic.LOAD64:
                     addr = stack.pop()
@@ -447,21 +470,6 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     stack.append(int.from_bytes(_bytes, byteorder="little"))
                     ip += 1
                 elif op.operand == Intrinsic.STORE64:
-                    store_value = stack.pop()
-                    store_value64 = store_value.to_bytes(length=8, byteorder="little", signed=(store_value < 0));
-                    store_addr64 = stack.pop();
-                    for byte in store_value64:
-                        mem[store_addr64] = byte;
-                        store_addr64 += 1;
-                    ip += 1
-                elif op.operand == Intrinsic.FORTH_LOAD64:
-                    addr = stack.pop()
-                    _bytes = bytearray(8)
-                    for offset in range(0,8):
-                        _bytes[offset] = mem[addr + offset]
-                    stack.append(int.from_bytes(_bytes, byteorder="little"))
-                    ip += 1
-                elif op.operand == Intrinsic.FORTH_STORE64:
                     store_addr64 = stack.pop();
                     store_value = stack.pop()
                     store_value64 = store_value.to_bytes(length=8, byteorder="little", signed=(store_value < 0));
@@ -488,6 +496,9 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     stack.append(str_ptrs[ip])
                     ip += 1
                 elif op.operand == Intrinsic.CAST_PTR:
+                    # Ignore the type casting. It's only useful for type_check_program() phase
+                    ip += 1
+                elif op.operand == Intrinsic.CAST_INT:
                     # Ignore the type casting. It's only useful for type_check_program() phase
                     ip += 1
                 elif op.operand == Intrinsic.SYSCALL0:
@@ -608,527 +619,534 @@ def getTypeHuman(i: int) -> str:
 
 DataStack: List[DataType]
 
+@dataclass
+class Context:
+    stack: List[DataType]
+    ip: OpAddr
+
 def type_check_program(program: Program):
-    stack: DataStack = []
-    block_stack: List[Tuple[DataStack, OpType]] = []
-    errors = 0
-    for ip in range(len(program)):
-        op = program[ip]
-        assert len(OpType) == 8, "Exhaustive ops handling in type_check_program()"
+    visited_dos: Dict[OpAddr, DataStack] = {}
+    contexts: List[Context] = [Context(stack=[], ip=0)]
+    while len(contexts) > 0:
+        ctx = contexts[-1];
+        if ctx.ip >= len(program.ops):
+            if len(ctx.stack) != 0:
+                compiler_error(ctx.stack[-1][1], "unhandled data on the data stack: %s" % list(map(lambda x: x[0], ctx.stack)))
+                exit(1)
+            contexts.pop()
+            continue
+        op = program.ops[ctx.ip]
+        assert len(OpType) == 11, "Exhaustive ops handling in type_check_program()"
         if op.typ == OpType.PUSH_INT:
-            stack.append((DataType.INT, op.token))
+            ctx.stack.append((DataType.INT, op.token))
+            ctx.ip += 1
         elif op.typ == OpType.PUSH_STR:
-            stack.append((DataType.INT, op.token))
-            stack.append((DataType.PTR, op.token))
+            ctx.stack.append((DataType.INT, op.token))
+            ctx.stack.append((DataType.PTR, op.token))
+            ctx.ip += 1
+        elif op.typ == OpType.PUSH_CSTR:
+            ctx.stack.append((DataType.PTR, op.token))
+            ctx.ip += 1
+        elif op.typ == OpType.PUSH_MEM:
+            ctx.stack.append((DataType.PTR, op.token))
+            ctx.ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 43, "Exhaustive intrinsic handling in type_check_program()"
+            assert len(Intrinsic) == 44, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
             if op.operand == Intrinsic.PLUS:
                 assert len(DataType) == 3, "Exhaustive type handling in PLUS intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == DataType.INT and b_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 elif a_type == DataType.INT and b_type == DataType.PTR:
-                    stack.append((DataType.PTR, op.token))
+                    ctx.stack.append((DataType.PTR, op.token))
                 elif a_type == DataType.PTR and b_type == DataType.INT:
-                    stack.append((DataType.PTR, op.token))
+                    ctx.stack.append((DataType.PTR, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument types for PLUS intrinsic. Expected INT or PTR")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument types for PLUS intrinsic. Expected INT or PTR")
+                    exit(1)
             elif op.operand == Intrinsic.MINUS:
                 assert len(DataType) == 3, "Exhaustive type handling in MINUS intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and (a_type == DataType.INT or a_type == DataType.PTR):
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 elif b_type == DataType.PTR and a_type == DataType.INT:
-                    stack.append((DataType.PTR, op.token))
+                    ctx.stack.append((DataType.PTR, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument types fo MINUS intrinsic: %s" % [b_type, a_type])
-                    errors += 1
+                    compiler_error(op.token, "invalid argument types fo MINUS intrinsic: %s" % [b_type, a_type])
+                    exit(1)
             elif op.operand == Intrinsic.MUL:
                 assert len(DataType) == 3, "Exhaustive type handling in MUL intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument types fo MUL intrinsic. Expected INT.")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument types fo MUL intrinsic. Expected INT.")
+                    exit(1)
             elif op.operand == Intrinsic.DIVMOD:
                 assert len(DataType) == 3, "Exhaustive type handling in DIVMOD intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument types fo DIVMOD intrinsic. Expected INT.")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument types fo DIVMOD intrinsic. Expected INT.")
+                    exit(1)
             elif op.operand == Intrinsic.EQ:
                 assert len(DataType) == 3, "Exhaustive type handling in EQ intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument types fo EQ intrinsic. Expected INT.")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument types fo EQ intrinsic. Expected INT.")
+                    exit(1)
             elif op.operand == Intrinsic.GT:
                 assert len(DataType) == 3, "Exhaustive type handling in GT intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for GT intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for GT intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.LT:
                 assert len(DataType) == 3, "Exhaustive type handling in LT intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for LT intrinsic")
-                    errors += 1
-            elif op.operand == Intrinsic.TRUE:
-                stack.append((DataType.BOOL, op.token))
-            elif op.operand == Intrinsic.FALSE:
-                stack.append((DataType.BOOL, op.token))
+                    compiler_error(op.token, "invalid argument type for LT intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.GE:
                 assert len(DataType) == 3, "Exhaustive type handling in GE intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for GE intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for GE intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.LE:
                 assert len(DataType) == 3, "Exhaustive type handling in LE intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for LE intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for LE intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.NE:
                 assert len(DataType) == 3, "Exhaustive type handling in NE intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for NE intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for NE intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.SHR:
                 assert len(DataType) == 3, "Exhaustive type handling in SHR intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for SHR intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for SHR intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.SHL:
                 assert len(DataType) == 3, "Exhaustive type handling in SHL intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for SHL intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for SHL intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.OR:
                 assert len(DataType) == 3, "Exhaustive type handling in OR intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 elif a_type == b_type and a_type == DataType.BOOL:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for OR intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for OR intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.AND:
                 assert len(DataType) == 3, "Exhaustive type handling in AND intrinsic"
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == b_type and a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 elif a_type == b_type and a_type == DataType.BOOL:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for AND intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for AND intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.NOT:
                 assert len(DataType) == 3, "Exhaustive type handling in NOT intrinsic"
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
 
                 if a_type == DataType.INT:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 elif a_type == DataType.BOOL:
-                    stack.append((DataType.BOOL, op.token))
+                    ctx.stack.append((DataType.BOOL, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for NOT intrinsic")
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for NOT intrinsic")
+                    exit(1)
             elif op.operand == Intrinsic.PRINT:
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                stack.pop()
+                    exit(1)
+                ctx.stack.pop()
             elif op.operand == Intrinsic.DUP:
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                a = stack.pop()
-                stack.append(a)
-                stack.append(a)
+                    exit(1)
+                a = ctx.stack.pop()
+                ctx.stack.append(a)
+                ctx.stack.append(a)
             elif op.operand == Intrinsic.SWAP:
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(a)
-                stack.append(b)
+                    exit(1)
+                a = ctx.stack.pop()
+                b = ctx.stack.pop()
+                ctx.stack.append(a)
+                ctx.stack.append(b)
             elif op.operand == Intrinsic.DROP:
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                stack.pop()
+                    exit(1)
+                ctx.stack.pop()
             elif op.operand == Intrinsic.OVER:
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
-                a = stack.pop()
-                b = stack.pop()
-                stack.append(b)
-                stack.append(a)
-                stack.append(b)
+                    exit(1)
+                a = ctx.stack.pop()
+                b = ctx.stack.pop()
+                ctx.stack.append(b)
+                ctx.stack.append(a)
+                ctx.stack.append(b)
             elif op.operand == Intrinsic.ROT:
-                if len(stack) < 3:
+                if len(ctx.stack) < 3:
                     not_enough_arguments(op)
-                    errors += 1
-                a = stack.pop()
-                b = stack.pop()
-                c = stack.pop()
-                stack.append(b)
-                stack.append(a)
-                stack.append(c)
-            elif op.operand == Intrinsic.MEM:
-                stack.append((DataType.PTR, op.token))
-            elif op.operand == Intrinsic.LOAD:
-                assert len(DataType) == 3, "Exhaustive type handling in LOAD intrinsic"
-                if len(stack) < 1:
+                    exit(1)
+                a = ctx.stack.pop()
+                b = ctx.stack.pop()
+                c = ctx.stack.pop()
+                ctx.stack.append(b)
+                ctx.stack.append(a)
+                ctx.stack.append(c)
+            elif op.operand == Intrinsic.LOAD8:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD8 intrinsic"
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
 
                 if a_type == DataType.PTR:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for LOAD intrinsic: %s" % a_type)
-                    errors += 1
-            elif op.operand == Intrinsic.STORE:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE intrinsic"
-                if len(stack) < 2:
+                    compiler_error(op.token, "invalid argument type for LOAD8 intrinsic: %s" % a_type)
+                    exit(1)
+            elif op.operand == Intrinsic.STORE8:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE8 intrinsic"
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
-
-                if a_type == DataType.INT and b_type == DataType.PTR:
-                    pass
-                else:
-                    compiler_error(op.token.loc, "invalid argument type for STORE intrinsic")
-                    errors += 1
-            elif op.operand == Intrinsic.FORTH_LOAD:
-                assert len(DataType) == 3, "Exhaustive type handling in LOAD intrinsic"
-                if len(stack) < 1:
-                    not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
-
-                if a_type == DataType.PTR:
-                    stack.append((DataType.INT, op.token))
-                else:
-                    compiler_error(op.token.loc, "invalid argument type for LOAD intrinsic: %s" % a_type)
-                    errors += 1
-            elif op.operand == Intrinsic.FORTH_STORE:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE intrinsic"
-                if len(stack) < 2:
-                    not_enough_arguments(op)
-                    errors += 1
-
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if a_type == DataType.PTR and b_type == DataType.INT:
                     pass
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for STORE intrinsic")
-                    errors += 1
-            elif op.operand == Intrinsic.LOAD64:
-                assert len(DataType) == 3, "Exhaustive type handling in LOAD64 intrinsic"
-                if len(stack) < 1:
+                    compiler_error(op.token, "invalid argument type for STORE8 intrinsic")
+                    exit(1)
+            elif op.operand == Intrinsic.LOAD16:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD16 intrinsic"
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
 
                 if a_type == DataType.PTR:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for LOAD64 intrinsic")
-                    errors += 1
-            elif op.operand == Intrinsic.STORE64:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE64 intrinsic"
-                if len(stack) < 2:
+                    compiler_error(op.token, "invalid argument type for LOAD16 intrinsic: %s" % a_type)
+                    exit(1)
+            elif op.operand == Intrinsic.STORE16:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE16 intrinsic"
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
-                if (a_type == DataType.INT or a_type == DataType.PTR) and b_type == DataType.PTR:
+                if a_type == DataType.PTR and b_type == DataType.INT:
                     pass
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for STORE64 intrinsic: %s" % [b_type, a_type])
-                    errors += 1
-            elif op.operand == Intrinsic.FORTH_LOAD64:
-                assert len(DataType) == 3, "Exhaustive type handling in LOAD64 intrinsic"
-                if len(stack) < 1:
+                    compiler_error(op.token, "invalid argument type for STORE16 intrinsic")
+                    exit(1)
+            elif op.operand == Intrinsic.LOAD32:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD32 intrinsic"
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
-                a_type, a_loc = stack.pop()
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
 
                 if a_type == DataType.PTR:
-                    stack.append((DataType.INT, op.token))
+                    ctx.stack.append((DataType.INT, op.token))
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for LOAD64 intrinsic")
-                    errors += 1
-            elif op.operand == Intrinsic.FORTH_STORE64:
-                assert len(DataType) == 3, "Exhaustive type handling in STORE64 intrinsic"
-                if len(stack) < 2:
+                    compiler_error(op.token, "invalid argument type for LOAD32 intrinsic: %s" % a_type)
+                    exit(1)
+            elif op.operand == Intrinsic.STORE32:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE32 intrinsic"
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_loc = stack.pop()
-                b_type, b_loc = stack.pop()
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
+
+                if a_type == DataType.PTR and b_type == DataType.INT:
+                    pass
+                else:
+                    compiler_error(op.token, "invalid argument type for STORE32 intrinsic")
+                    exit(1)
+            elif op.operand == Intrinsic.LOAD64:
+                assert len(DataType) == 3, "Exhaustive type handling in LOAD64 intrinsic"
+                if len(ctx.stack) < 1:
+                    not_enough_arguments(op)
+                    exit(1)
+                a_type, a_loc = ctx.stack.pop()
+
+                if a_type == DataType.PTR:
+                    ctx.stack.append((DataType.INT, op.token))
+                else:
+                    compiler_error(op.token, "invalid argument type for LOAD64 intrinsic")
+                    exit(1)
+            elif op.operand == Intrinsic.STORE64:
+                assert len(DataType) == 3, "Exhaustive type handling in STORE64 intrinsic"
+                if len(ctx.stack) < 2:
+                    not_enough_arguments(op)
+                    exit(1)
+
+                a_type, a_loc = ctx.stack.pop()
+                b_type, b_loc = ctx.stack.pop()
 
                 if (b_type == DataType.INT or b_type == DataType.PTR) and a_type == DataType.PTR:
                     pass
                 else:
-                    compiler_error(op.token.loc, "invalid argument type for STORE64 intrinsic: %s" % [b_type, a_type])
-                    errors += 1
+                    compiler_error(op.token, "invalid argument type for STORE64 intrinsic: %s" % [b_type, a_type])
+                    exit(1)
             elif op.operand == Intrinsic.CAST_PTR:
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
 
-                a_type, a_token = stack.pop()
+                a_type, a_token = ctx.stack.pop()
 
-                stack.append((DataType.PTR, a_token))
+                ctx.stack.append((DataType.PTR, a_token))
+            elif op.operand == Intrinsic.CAST_BOOL:
+                if len(ctx.stack) < 1:
+                    not_enough_arguments(op)
+                    exit(1)
+
+                a_type, a_token = ctx.stack.pop()
+
+                ctx.stack.append((DataType.BOOL, a_token))
+            elif op.operand == Intrinsic.CAST_INT:
+                if len(ctx.stack) < 1:
+                    not_enough_arguments(op)
+                    exit(1)
+
+                a_type, a_token = ctx.stack.pop()
+
+                ctx.stack.append((DataType.INT, a_token))
+            elif op.operand == Intrinsic.CAST_BOOL:
+                if len(ctx.stack) < 1:
+                    not_enough_arguments(op)
+                    exit(1)
+
+                a_type, a_token = ctx.stack.pop()
+
+                ctx.stack.append((DataType.BOOL, a_token))
             elif op.operand == Intrinsic.ARGC:
-                stack.append((DataType.INT, op.token))
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.ARGV:
-                stack.append((DataType.PTR, op.token))
+                ctx.stack.append((DataType.PTR, op.token))
             elif op.operand == Intrinsic.HERE:
-                stack.append((DataType.INT, op.token))
-                stack.append((DataType.PTR, op.token))
+                ctx.stack.append((DataType.INT, op.token))
+                ctx.stack.append((DataType.PTR, op.token))
             # TODO: figure out how to type check syscall arguments and return types
             elif op.operand == Intrinsic.SYSCALL0:
-                if len(stack) < 1:
+                if len(ctx.stack) < 1:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(1):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL1:
-                if len(stack) < 2:
+                if len(ctx.stack) < 2:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(2):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL2:
-                if len(stack) < 3:
+                if len(ctx.stack) < 3:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(3):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL3:
-                if len(stack) < 4:
+                if len(ctx.stack) < 4:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(4):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL4:
-                if len(stack) < 5:
+                if len(ctx.stack) < 5:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(5):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL5:
-                if len(stack) < 6:
+                if len(ctx.stack) < 6:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(6):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             elif op.operand == Intrinsic.SYSCALL6:
-                if len(stack) < 7:
+                if len(ctx.stack) < 7:
                     not_enough_arguments(op)
-                    errors += 1
+                    exit(1)
                 for i in range(7):
-                    stack.pop()
-                stack.append((DataType.INT, op.token))
+                    ctx.stack.pop()
+                ctx.stack.append((DataType.INT, op.token))
             else:
-                assert False, "unreachable"
+                assert False, "unreachable " + str(op.operand)
+            ctx.ip += 1
         elif op.typ == OpType.IF:
-            if len(stack) < 1:
-                not_enough_arguments(op)
-                errors += 1
-            a_type, a_token = stack.pop()
-            if a_type != DataType.BOOL:
-                compiler_error(op.token.loc, "Invalid argument for the if-block condition. Expected BOOL.")
-                errors += 1
-            block_stack.append((copy(stack), op.typ))
-        elif op.typ == OpType.END:
-            block_snapshot, block_type = block_stack.pop()
-            assert len(OpType) == 8, "Exhaustive handling of op types"
-            if block_type == OpType.IF:
-                expected_types = list(map(lambda x: x[0], block_snapshot))
-                actual_types = list(map(lambda x: x[0], stack))
-                if expected_types != actual_types:
-                    compiler_error(op.token.loc, 'else-less if block is not allowed to alter the types of the arguments on the data stack')
-                    compiler_note(op.token.loc, 'Expected types: %s' % expected_types)
-                    compiler_note(op.token.loc, 'Actual types: %s' % actual_types)
-                    errors += 1
-            elif block_type == OpType.ELSE:
-                expected_types = list(map(lambda x: x[0], block_snapshot))
-                actual_types = list(map(lambda x: x[0], stack))
-                if expected_types != actual_types:
-                    compiler_error(op.token.loc, 'both branches of the if-block must produce the same types of the arguments on the data stack')
-                    compiler_note(op.token.loc, 'Expected types: %s' % expected_types)
-                    compiler_note(op.token.loc, 'Actual types: %s' % actual_types)
-                    errors += 1
-            elif block_type == OpType.DO:
-                while_snapshot, while_type = block_stack.pop()
-                assert while_type == OpType.WHILE
-
-                expected_types = list(map(lambda x: x[0], while_snapshot))
-                actual_types = list(map(lambda x: x[0], stack))
-
-                if expected_types != actual_types:
-                    compiler_error(op.token.loc, 'while-do body is not allowed to alter the types of the arguments on the data stack')
-                    compiler_note(op.token.loc, 'Expected types: %s' % expected_types)
-                    compiler_note(op.token.loc, 'Actual types: %s' % actual_types)
-                    errors += 1
-
-                stack = block_snapshot
-            else:
-                assert "unreachable"
-        elif op.typ == OpType.ELSE:
-            stack_snapshot, block_type = block_stack.pop()
-            assert block_type == OpType.IF
-            block_stack.append((copy(stack), op.typ))
-            stack = stack_snapshot
+            ctx.ip += 1
         elif op.typ == OpType.WHILE:
-            block_stack.append((copy(stack), op.typ))
+            ctx.ip += 1
+        elif op.typ == OpType.END:
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.ELSE:
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
+        elif op.typ == OpType.ELIF:
+            assert isinstance(op.operand, OpAddr)
+            ctx.ip = op.operand
         elif op.typ == OpType.DO:
-            if len(stack) < 1:
+            assert isinstance(op.operand, OpAddr)
+            if len(ctx.stack) < 1:
                 not_enough_arguments(op)
-                errors += 1
-            a_type, a_token = stack.pop()
+                exit(1)
+            a_type, a_token = ctx.stack.pop()
             if a_type != DataType.BOOL:
                 compiler_error(op.token, "Invalid argument for the while-do condition. Expected BOOL.")
-                errors += 1
-            block_stack.append((copy(stack), op.typ))
+                exit(1)
+            if ctx.ip in visited_dos:
+                expected_types = list(map(lambda x: x[0], visited_dos[ctx.ip]))
+                actual_types = list(map(lambda x: x[0], ctx.stack))
+                if expected_types != actual_types:
+                    compiler_error(op.token, 'Loops are not allowed to alter types and amount of elements on the stack.')
+                    compiler_note(op.token.loc, 'Expected elements: %s' % expected_types)
+                    compiler_note(op.token.loc, 'Actual elements: %s' % actual_types)
+                    exit(1)
+                contexts.pop()
+            else:
+                visited_dos[ctx.ip] = copy(ctx.stack)
+                ctx.ip += 1
+                contexts.append(Context(stack=copy(ctx.stack), ip=op.operand))
+                ctx = contexts[-1]
         else:
             assert False, "unreachable"
-    if len(stack) != 0:
-        compiler_error(stack[-1][1], "unhandled data on the stack: %s" % list(map(lambda x: x[0], stack)))
-        errors += 1
-
-    if errors > 0:
-        eprint("Could not compile program due to {} previous errors.".format(errors))
-        exit(1)
 
 
 def generate_nasm_linux_x86_64(program: Program, file_path: str):
@@ -1174,9 +1192,9 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("    ; -- init argv\n")
         out.write("    mov [args_ptr], rsp\n")
         out.write("    \n")
-        for ip in range(len(program)):
-            op = program[ip]
-            assert len(OpType) == 8, "Exhaustive ops handling in generate_nasm_linux_x86_64"
+        for ip in range(len(program.ops)):
+            op = program.ops[ip]
+            assert len(OpType) == 11, "Exhaustive ops handling in generate_nasm_linux_x86_64"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
@@ -1192,15 +1210,26 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 out.write("    push rax\n")
                 out.write("    push str_%d\n" % len(strs))
                 strs.append(value)
+            elif op.typ == OpType.PUSH_CSTR:
+                assert isinstance(op.operand, str), "This could be a bug in the parsing step"
+                value = op.operand.encode('utf-8') + b'\0'
+                out.write("    ;; -- push str --\n")
+                out.write("    push str_%d\n" % len(strs))
+                strs.append(value)
+            elif op.typ == OpType.PUSH_MEM:
+                out.write("    ;; -- push mem --\n")
+                out.write("    mov rax, mem\n")
+                out.write("    add rax, %d\n" % op.operand)
+                out.write("    push rax\n")
             elif op.typ == OpType.IF:
                 out.write("    ;; -- if --\n")
-                out.write("    pop rax\n")
-                out.write("    test rax, rax\n")
-                assert isinstance(op.operand, int), "This could be a bug in the compilation step"
-                out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.ELSE:
                 out.write("    ;; -- else --\n")
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
+                out.write("    jmp addr_%d\n" % op.operand)
+            elif op.typ == OpType.ELIF:
+                out.write("    ;; -- elif --\n")
+                assert isinstance(op.operand, OpAddr), f"This could be a bug in the parsing step: {op.operand}"
                 out.write("    jmp addr_%d\n" % op.operand)
             elif op.typ == OpType.END:
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
@@ -1216,7 +1245,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 43, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64()"
+                assert len(Intrinsic) == 44, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64() " + str(len(Intrinsic))
                 if op.operand == Intrinsic.PLUS:
                     out.write("    ;; -- plus --\n")
                     out.write("    pop rax\n")
@@ -1293,14 +1322,6 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                     out.write("    pop rax\n")
                     out.write("    not rax\n")
                     out.write("    push rax\n")
-                elif op.operand == Intrinsic.TRUE:
-                    out.write("    ;; -- true --\n")
-                    out.write("    mov rax, 1\n")
-                    out.write("    push rax\n")
-                elif op.operand == Intrinsic.FALSE:
-                    out.write("    ;; -- false --\n")
-                    out.write("    mov rax, 0\n")
-                    out.write("    push rax\n")
                 elif op.operand == Intrinsic.GT:
                     out.write("    ;; -- gt --\n")
                     out.write("    mov rcx, 0\n");
@@ -1369,6 +1390,10 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                     out.write("    push rbx\n")
                 elif op.operand == Intrinsic.CAST_PTR:
                     out.write("    ;; -- cast(ptr) --\n")
+                elif op.operand == Intrinsic.CAST_INT:
+                    out.write("    ;; -- cast(int) --\n")
+                elif op.operand == Intrinsic.CAST_BOOL:
+                    out.write("    ;; -- cast(bool) --\n")
                 elif op.operand == Intrinsic.ARGC:
                     out.write("    ; -- argc --\n")
                     out.write("    mov rax, [args_ptr]\n")
@@ -1387,49 +1412,24 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                     out.write("    push rax\n")
                     out.write("    push str_%d\n" % len(strs))
                     strs.append(value)
-                elif op.operand == Intrinsic.MEM:
-                    out.write("    ;; -- mem --\n")
-                    out.write("    push mem\n")
-                elif op.operand == Intrinsic.LOAD:
-                    out.write("    ;; -- load --\n")
-                    out.write("    pop rax\n")
-                    out.write("    xor rbx, rbx\n")
-                    out.write("    mov bl, [rax]\n")
-                    out.write("    push rbx\n")
-                elif op.operand == Intrinsic.STORE:
-                    out.write("    ;; -- store --\n")
-                    out.write("    pop rbx\n");
-                    out.write("    pop rax\n");
-                    out.write("    mov [rax], bl\n");
-                elif op.operand == Intrinsic.FORTH_LOAD:
+                elif op.operand == Intrinsic.LOAD8:
                     out.write("    ;; -- forth load --\n")
                     out.write("    pop rax\n")
                     out.write("    xor rbx, rbx\n")
                     out.write("    mov bl, [rax]\n")
                     out.write("    push rbx\n")
-                elif op.operand == Intrinsic.FORTH_STORE:
+                elif op.operand == Intrinsic.STORE8:
                     out.write("    ;; -- store --\n")
                     out.write("    pop rax\n");
                     out.write("    pop rbx\n");
                     out.write("    mov [rax], bl\n");
                 elif op.operand == Intrinsic.LOAD64:
-                    out.write("    ;; -- load --\n")
-                    out.write("    pop rax\n")
-                    out.write("    xor rbx, rbx\n")
-                    out.write("    mov rbx, [rax]\n")
-                    out.write("    push rbx\n")
-                elif op.operand == Intrinsic.STORE64:
-                    out.write("    ;; -- store --\n")
-                    out.write("    pop rbx\n");
-                    out.write("    pop rax\n");
-                    out.write("    mov [rax], rbx\n");
-                elif op.operand == Intrinsic.FORTH_LOAD64:
                     out.write("    ;; -- forth load64 --\n")
                     out.write("    pop rax\n")
                     out.write("    xor rbx, rbx\n")
                     out.write("    mov rbx, [rax]\n")
                     out.write("    push rbx\n")
-                elif op.operand == Intrinsic.FORTH_STORE64:
+                elif op.operand == Intrinsic.STORE64:
                     out.write("    ;; -- forth store64 --\n")
                     out.write("    pop rax\n");
                     out.write("    pop rbx\n");
@@ -1491,11 +1491,12 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                     out.write("    syscall\n")
                     out.write("    push rax\n")
                 else:
-                    assert False, "unreachable"
+                    assert False, "unreachable " + str(op.operand)
             else:
+                print(op.typ)
                 assert False, "unreachable"
 
-        out.write("addr_%d:\n" % len(program))
+        out.write("addr_%d:\n" % len(program.ops))
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
@@ -1507,22 +1508,24 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
             
         out.write("segment .bss\n")
         out.write("    args_ptr: resq 1\n")
-        out.write("    mem: resb %d\n" % MEM_CAPACITY)
+        out.write("    mem: resb %d\n" % program.memory_capacity)
 
 
-assert len(Keyword) == 7, "Exhaustive KEYWORD_NAMES definition."
+assert len(Keyword) == 9, "Exhaustive KEYWORD_NAMES definition."
 KEYWORD_NAMES = {
     'if': Keyword.IF,
     'end': Keyword.END,
     'else': Keyword.ELSE,
+    'elif': Keyword.ELIF,
     'while': Keyword.WHILE,
     'do': Keyword.DO,
     'macro': Keyword.MACRO,
+    'memory': Keyword.MEMORY,
     'include': Keyword.INCLUDE,
 }
 
 
-assert len(Intrinsic) == 43, "Exhaustive INTRINSIC_NAMES definition"
+assert len(Intrinsic) == 44, "Exhaustive INTRINSIC_NAMES definition"
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1537,9 +1540,7 @@ INTRINSIC_BY_NAMES = {
     '!=': Intrinsic.NE,
     'not': Intrinsic.NOT,
     'shr': Intrinsic.SHR,
-    '>>': Intrinsic.SHR,
-    'shr': Intrinsic.SHL,
-    '<<': Intrinsic.SHL,
+    'shl': Intrinsic.SHL,
     'or': Intrinsic.OR,
     '|': Intrinsic.OR,
     'and': Intrinsic.AND,
@@ -1548,16 +1549,17 @@ INTRINSIC_BY_NAMES = {
     'swap': Intrinsic.SWAP,
     'drop': Intrinsic.DROP,
     'over': Intrinsic.OVER,
-    'mem': Intrinsic.MEM,
-    'store': Intrinsic.STORE,
-    'load': Intrinsic.LOAD,
-    'store64': Intrinsic.STORE64,
-    'load64': Intrinsic.LOAD64,
-    '!8': Intrinsic.FORTH_STORE,
-    '@8': Intrinsic.FORTH_LOAD,
-    '!64': Intrinsic.FORTH_STORE64,
-    '@64': Intrinsic.FORTH_LOAD64,
+    '!8': Intrinsic.STORE8,
+    '@8': Intrinsic.LOAD8,
+    '!16': Intrinsic.STORE16,
+    '@16': Intrinsic.LOAD16,
+    '!32': Intrinsic.STORE32,
+    '@32': Intrinsic.LOAD32,
+    '!64': Intrinsic.STORE64,
+    '@64': Intrinsic.LOAD64,
     'cast(ptr)': Intrinsic.CAST_PTR,
+    'cast(int)': Intrinsic.CAST_INT,
+    'cast(bool)': Intrinsic.CAST_BOOL,
     'syscall0': Intrinsic.SYSCALL0,
     'syscall1': Intrinsic.SYSCALL1,
     'syscall2': Intrinsic.SYSCALL2,
@@ -1568,8 +1570,6 @@ INTRINSIC_BY_NAMES = {
     'argc': Intrinsic.ARGC,
     'argv': Intrinsic.ARGV,
     'here': Intrinsic.HERE,
-    'true': Intrinsic.TRUE,
-    'false': Intrinsic.FALSE,
     'rot': Intrinsic.ROT,
 }
 INTRINSIC_NAMES = {v: k for k, v in INTRINSIC_BY_NAMES.items()}
@@ -1588,8 +1588,10 @@ def human(typ: TokenType) -> str:
         return "string"
     elif typ == TokenType.CHAR:
         return "char"
+    elif typ == TokenType.KEYWORD:
+        return "keyword"
     else:
-        return "UNKNOWN"
+        return str(typ)
 
 def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
     result = list(map(lambda x: copy(x), macro.tokens))
@@ -1599,105 +1601,157 @@ def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
     return result
 
 
-def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], expansion_limit: int, src_dir) -> Program:
+def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int, base_path) -> Program:
     stack: List[OpAddr] = []
-    program: List[Op] = []
+    program: List[Op] = Program(ops=[], memory_capacity=0)
     rtokens: List[Token] = list(reversed(tokens))
+    memories = {}
+    mem_cap = 0
     macros: Dict[str, Macro] = {}
-    errors = 0
     ip: OpAddr = 0;
     while len(rtokens) > 0:
         token = rtokens.pop()
-        assert len(TokenType) == 5, "Exhaustive token handling in compile_tokens_to_program"
+        assert len(TokenType) == 6, "Exhaustive token handling in parse_program_from_tokens"
         if token.typ == TokenType.WORD:
             assert isinstance(token.value, str), "This could be a bug in the lexer"
             if token.value in INTRINSIC_BY_NAMES:
-                program.append(Op(typ=OpType.INTRINSIC, token=token, operand=INTRINSIC_BY_NAMES[token.value]))
+                program.ops.append(Op(typ=OpType.INTRINSIC, token=token, operand=INTRINSIC_BY_NAMES[token.value]))
                 ip += 1
             elif token.value in macros:
                 if token.expanded_count >= expansion_limit:
-                    eprint("the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count, token.loc)
+                    compiler_error(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                     exit(1)
                 rtokens += reversed(expand_macro(macros[token.value], token))
+            elif token.value in memories:
+                program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value]))
+                ip += 1
             else:
-                eprint("Unknown word %s" % token.value, token.loc)
+                compiler_error(token, "unknown word `%s`" % token.value)
                 exit(1)
         elif token.typ == TokenType.INT:
             assert isinstance(token.value, int), "This could be a bug in the lexer"
-            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token))
+            program.ops.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token))
             ip += 1
         elif token.typ == TokenType.STR:
             assert isinstance(token.value, str), "This could be a bug in the lexer"
-            program.append(Op(typ=OpType.PUSH_STR, operand=token.value, token=token));
+            program.ops.append(Op(typ=OpType.PUSH_STR, operand=token.value, token=token));
+            ip += 1
+        elif token.typ == TokenType.CSTR:
+            assert isinstance(token.value, str), "This could be a bug in the lexer"
+            program.ops.append(Op(typ=OpType.PUSH_CSTR, operand=token.value, token=token));
             ip += 1
         elif token.typ == TokenType.CHAR:
             assert isinstance(token.value, int)
-            program.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token));
+            program.ops.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token));
             ip += 1
         elif token.typ == TokenType.KEYWORD:
-            assert len(Keyword) == 7, "Exhaustive keywords handling in compile_tokens_to_program()"
+            assert len(Keyword) == 9, "Exhaustive keywords handling in parse_program_from_tokens()"
             if token.value == Keyword.IF:
-                program.append(Op(typ=OpType.IF, token=token))
+                program.ops.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
                 ip += 1
-            elif token.value == Keyword.ELSE:
-                program.append(Op(typ=OpType.ELSE, token=token))
-                if_ip = stack.pop()
-                if program[if_ip].typ != OpType.IF:
-                    eprint('`else` can only be used in `if`-blocks', token.loc)
-                    errors += 1
-                program[if_ip].operand = ip + 1
-                stack.append(ip)
-                ip += 1
-            elif token.value == Keyword.END:
-                program.append(Op(typ=OpType.END, token=token))
-                block_ip = stack.pop()
-                if program[block_ip].typ == OpType.IF or program[block_ip].typ == OpType.ELSE:
-                    program[block_ip].operand = ip
-                    program[ip].operand = ip + 1
-                elif program[block_ip].typ == OpType.DO:
-                    assert program[block_ip].operand is not None
-                    program[ip].operand = program[block_ip].operand
-                    program[block_ip].operand = ip + 1
+            elif token.value == Keyword.ELIF:
+                program.ops.append(Op(typ=OpType.ELIF, token=token))
+                do_ip = stack.pop()
+                if program.ops[do_ip].typ != OpType.DO:
+                    compiler_error(program.loc[do_ip].token, '`elif` can only close `do`-blocks')
+                    exit(1)
+                pre_do_ip = program.ops[do_ip].operand
+                assert isinstance(pre_do_ip, OpAddr)
+                if program.ops[pre_do_ip].typ == OpType.IF:
+                    program.ops[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                elif program.ops[pre_do_ip].typ == OpType.ELIF:
+                    program.ops[pre_do_ip].operand = ip
+                    program.ops[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
                 else:
-                    eprint('`end` can only close `if`, `else` or `do` blocks for now', program[block_ip].token.loc)
-                    errors += 1
+                    compiler_error(program.ops[do_ip].token, '`elif` can only close `do`-blocks that are preceded by `if` or another `elif`')
+                    exit(1)
+            elif token.value == Keyword.ELSE:
+                program.ops.append(Op(typ=OpType.ELSE, token=token))
+                do_ip = stack.pop()
+                if program.ops[do_ip].typ != OpType.DO:
+                    compiler_error(program.ops[do_ip].token, '`else` can only be used in `do` blocks')
+                    exit(1)
+                pre_do_ip = program.ops[do_ip].operand
+                assert isinstance(pre_do_ip, OpAddr)
+                if program.ops[pre_do_ip].typ == OpType.IF:
+                    program.ops[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                elif program.ops[pre_do_ip].typ == OpType.ELIF:
+                    program.ops[pre_do_ip].operand = ip
+                    program.ops[do_ip].operand = ip + 1
+                    stack.append(ip)
+                    ip += 1
+                else:
+                    compiler_error(program.loc[pre_do_ip].token, '`else` can only close `do`-blocks that are preceded by `if` or `elif`')
+                    exit(1)
+            elif token.value == Keyword.END:
+                program.ops.append(Op(typ=OpType.END, token=token))
+                block_ip = stack.pop()
+                if program.ops[block_ip].typ == OpType.ELSE:
+                    program.ops[block_ip].operand = ip
+                    program.ops[ip].operand = ip + 1
+                elif program.ops[block_ip].typ == OpType.DO:
+                    assert program.ops[block_ip].operand is not None
+                    pre_do_ip = program.ops[block_ip].operand
+
+                    assert isinstance(pre_do_ip, OpAddr)
+                    if program.ops[pre_do_ip].typ == OpType.WHILE:
+                        program.ops[ip].operand = pre_do_ip
+                        program.ops[block_ip].operand = ip + 1
+                    elif program.ops[pre_do_ip].typ == OpType.IF:
+                        program.ops[ip].operand = ip + 1
+                        program.ops[block_ip].operand = ip + 1
+                    elif program.ops[pre_do_ip].typ == OpType.ELIF:
+                        program.ops[pre_do_ip].operand = ip
+                        program.ops[ip].operand = ip + 1
+                        program.ops[block_ip].operand = ip + 1
+                    else:
+                        compiler_error(program.ops[pre_do_ip].token, '`end` can only close `do` blocks that are preceded by `if`, `while` or `elif`')
+                        exit(1)
+                else:
+                    compiler_error(program.ops[block_ip].token, '`end` can only close `else`, `do` or `macro` blocks for now')
+                    exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
-                program.append(Op(typ=OpType.WHILE, token=token))
+                program.ops.append(Op(typ=OpType.WHILE, token=token))
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.DO:
-                program.append(Op(typ=OpType.DO, token=token))
-                while_ip = stack.pop()
-                program[ip].operand = while_ip
+                program.ops.append(Op(typ=OpType.DO, token=token))
+                pre_do_ip = stack.pop()
+                assert program.ops[pre_do_ip].typ == OpType.WHILE or program.ops[pre_do_ip].typ == OpType.IF or program.ops[pre_do_ip].typ == OpType.ELIF
+                program.ops[ip].operand = pre_do_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
                 if len(rtokens) == 0:
-                    eprint("expected path to the include file but found nothing", token.loc)
+                    compiler_error(token, "expected path to the include file but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.STR:
-                    eprint("expected path to the include file to be %s but found %s" % (human(TokenType.STR), human(token.typ)), token.loc)
+                    compiler_error(token, "expected path to the include file to be `%s` but found `%s`" % (human(TokenType.STR), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
+                
                 file_included = False
 
-                if token.expanded_count >= expansion_limit:
-                    eprint("the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count, token.loc)
-                    exit(1)
-                if exists(os.path.join(src_dir, token.value)):
+                if os.path.exists(token.value):
                     if token.expanded_count >= expansion_limit:
-                            eprint("the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count, token.loc)
-                            exit(1)
-                    rtokens += reversed(lex_file(os.path.join(src_dir, token.value), token))
+                        compiler_error(token, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                        exit(1)
+                    rtokens += reversed(lex_file(token.value, token))
                     file_included = True
-                if file_included == False:
+                else: 
                     for include_path in include_paths:
                         try:
                             if token.expanded_count >= expansion_limit:
-                                eprint("the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count, token.loc)
+                                compiler_error(token.loc, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                                 exit(1)
                             rtokens += reversed(lex_file(os.path.join(include_path, token.value), token))
                             file_included = True
@@ -1705,25 +1759,76 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                         except FileNotFoundError:
                             continue
                 if not file_included:
-                    eprint("file `%s` not found" % token.value, token.loc)
+                    compiler_error(token, "file `%s` not found" % token.value)
                     exit(1)
-            elif token.value == Keyword.MACRO:
+            elif token.value == Keyword.MEMORY:
                 if len(rtokens) == 0:
-                    eprint("expected macro name but found nothing", token.loc)
+                    compiler_error_with_expansion_stack(token, "expected memory name but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.WORD:
-                    eprint("expected macro name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)), token.loc)
+                    compiler_error_with_expansion_stack(token, "expected memory name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
+                    exit(1)
+                assert isinstance(token.value, str), "This is probably a bug in the lexer"
+                memory_name = token.value
+                if memory_name in memories:
+                    assert False, "TODO: redefinition of a memory region"
+                if memory_name in INTRINSIC_BY_NAMES:
+                    assert False, "TODO: redefinition of an intrinsic"
+                if memory_name in macros:
+                    assert False, "TODO: redefinition of a macro"
+                mem_size_stack: List[int] = []
+                while len(rtokens) > 0:
+                    token = rtokens.pop()
+                    if token.typ == TokenType.KEYWORD:
+                        if token.value == Keyword.END:
+                            break
+                        else:
+                            assert False, "TODO: unsupported keyword in memory definition"
+                    elif token.typ == TokenType.INT:
+                        assert isinstance(token.value, int)
+                        mem_size_stack.append(token.value)
+                    elif token.typ == TokenType.WORD:
+                        if token.value == INTRINSIC_NAMES[Intrinsic.PLUS]:
+                            a = mem_size_stack.pop()
+                            b = mem_size_stack.pop()
+                            mem_size_stack.append(a + b)
+                        elif token.value == INTRINSIC_NAMES[Intrinsic.MUL]:
+                            a = mem_size_stack.pop()
+                            b = mem_size_stack.pop()
+                            mem_size_stack.append(a * b)
+                        elif token.value in macros:
+                            if token.expanded_count >= expansion_limit:
+                                compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                                exit(1)
+                            rtokens += reversed(expand_macro(macros[token.value], token))
+                        else:
+                            assert False, f"TODO: unsupported word in memory definition {token.value}"
+                    else:
+                        assert False, "TODO: unsupported token in memory definition"
+                if len(mem_size_stack) != 1:
+                    assert False, "TODO: memory definition expects only one integer"
+                memory_size = mem_size_stack.pop()
+                memories[memory_name] = program.memory_capacity
+                program.memory_capacity += memory_size
+            elif token.value == Keyword.MACRO:
+                if len(rtokens) == 0:
+                    compiler_error(token, "expected macro name but found nothing")
+                    exit(1)
+                token = rtokens.pop()
+                if token.typ != TokenType.WORD:
+                    compiler_error(token, "expected macro name to be `%s` but found `%s`" % (human(TokenType.WORD), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 if token.value in macros:
-                    eprint("redefinition of already existing macro `%s`" % token.value, token.loc)
-                    eprint("the first definition is located here", macros[token.value].loc)
+                    compiler_error(token, "redefinition of already existing macro `%s`" % token.value)
+                    compiler_note(macros[token.value].loc, "the first definition is located here")
                     exit(1)
-                # print(INTRINSIC_BY_NAMES)
-                # print(token.value)
                 if token.value in INTRINSIC_BY_NAMES:
-                    eprint("redefinition of an intrinsic word `%s`. Please choose a different name for your macro." % (token.value, ), token.loc)
+                    compiler_error(token, "redefinition of an intrinsic word `%s`. Please choose a different name for your macro." % (token.value, ))
+                    exit(1)
+                if token.value in memories:
+                    compiler_error(token, "redefinition of a memory region `%s`. Please choose a different name for your macro." % (token.value, ))
                     exit(1)
                 macro = Macro(token.loc, [])
                 macros[token.value] = macro
@@ -1740,7 +1845,7 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
                             elif token.value == Keyword.END:
                                 nesting_depth -= 1
                 if token.typ != TokenType.KEYWORD or token.value != Keyword.END:
-                    eprint("expected `end` at the end of the macro definition but got `%s`" % (token.value, ), token.loc)
+                    compiler_error(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value, ))
                     exit(1)
             else:
                 assert False, 'unreachable';
@@ -1749,12 +1854,8 @@ def compile_tokens_to_program(tokens: List[Token], include_paths: List[str], exp
 
 
     if len(stack) > 0:
-        eprint('unclosed block', program[stack.pop()].token.loc)
-        errors += 1
-    if errors > 0:
-        eprint("Could not compile program due to {} previous errors.".format(errors))
+        compiler_error(program.ops[stack.pop()].token, 'unclosed block')
         exit(1)
-
     return program
 
 
@@ -1779,7 +1880,7 @@ def find_string_literal_end(line: str, start: int) -> int:
     return start
 
 def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
-    assert len(TokenType) == 5, 'Exhaustive handling of token types in lex_lines'
+    assert len(TokenType) == 6, 'Exhaustive handling of token types in lex_lines'
     row = 0
     str_literal_buf = ""
     while row < len(lines):
@@ -1804,12 +1905,18 @@ def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
                         str_literal_buf += line[start:col_end]
                         break
                 if row >= len(lines):
-                    eprint("unclosed string literal",loc)
+                    eprint("unclosed string literal", loc)
                     exit(1)
+                assert line[col_end] == '"'
+                col_end += 1
                 text_of_token = str_literal_buf
                 str_literal_buf = ""
-                yield Token(TokenType.STR, text_of_token, loc, unescape_string(text_of_token))
-                col = find_col(line, col_end+1, lambda x: not x.isspace())
+                if col_end < len(line) and line[col_end] == 'c':
+                    col_end += 1
+                    yield Token(TokenType.CSTR, text_of_token, loc, unescape_string(text_of_token))
+                else:
+                    yield Token(TokenType.STR, text_of_token, loc, unescape_string(text_of_token))
+                col = find_col(line, col_end, lambda x: not x.isspace())
             elif line[col] == "'":
                 col_end = find_col(line, col+1, lambda x: x == "'")
                 if col_end >= len(line) or line[col_end] != "'":
@@ -1848,10 +1955,58 @@ def lex_file(file_path: str, expanded_from: Optional[Token] = None) -> List[Toke
         return result
 
 def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int, src_dir) -> Program:
-    return compile_tokens_to_program(lex_file(file_path), include_paths, expansion_limit, src_dir)
+    return parse_program_from_tokens(lex_file(file_path), include_paths, expansion_limit, src_dir)
         
 
-# simulate_program(program)
+def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
+    print(f"[INFO] Generating {dot_path}")
+    with open(dot_path, "w") as f:
+        f.write("digraph Program {\n")
+        for ip in range(len(program)):
+            op = program[ip]
+            if op.typ == OpType.INTRINSIC:
+                assert isinstance(op.operand, Intrinsic)
+                f.write(f"    Node_{ip} [label={repr(repr(INTRINSIC_NAMES[op.operand]))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.PUSH_STR:
+                assert isinstance(op.operand, str)
+                f.write(f"    Node_{ip} [label={repr(repr(op.operand))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.PUSH_CSTR:
+                assert isinstance(op.operand, str)
+                f.write(f"    Node_{ip} [label={repr(repr(op.operand))}];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.PUSH_INT:
+                assert isinstance(op.operand, int)
+                f.write(f"    Node_{ip} [label={op.operand}]\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.IF:
+                f.write(f"    Node_{ip} [shape=record label=if];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.WHILE:
+                f.write(f"    Node_{ip} [shape=record label=while];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.DO:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=do];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1} [label=true];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand} [label=false style=dashed];\n")
+            elif op.typ == OpType.ELSE:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=else];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            elif op.typ == OpType.ELIF:
+                f.write(f"    Node_{ip} [shape=record label=elif];\n")
+                f.write(f"    Node_{ip} -> Node_{ip + 1};\n")
+            elif op.typ == OpType.END:
+                assert isinstance(op.operand, OpAddr)
+                f.write(f"    Node_{ip} [shape=record label=end];\n")
+                f.write(f"    Node_{ip} -> Node_{op.operand};\n")
+            else:
+                assert False, f"unimplemented operation {op.typ}"
+        f.write(f"    Node_{len(program)} [label=halt];\n")
+        f.write("}\n")
+    run_cmd(["dot", "-Tsvg", "-O", dot_path])
 
 def usage(exec):
     print("Usage: %s [SUBCOMMAND] [FLAGS] [FILE]" % exec)
@@ -1862,8 +2017,9 @@ def usage(exec):
     print("    -h, --help                          => Show this help text.")
     print("    --unsafe                            => Skip type checking the source code")
     print("    -r, --run                           => Run the program after compiling. Only relavent in compile mode.")
-    print("    -nrm, --no-remove                       => Remove the out.asm and out.o files. Only relavent in compile mode.")
-    print("    -o [FILENAME]                       => The name of the compile program.")
+    print("    -nrm, --no-remove                   => Disable removing the out.asm and out.o files. Only relavent in compile mode.")
+    print("    -o [FILENAME]                       => Output file.")
+    print("    -cf, --control-flow                 => Dumps the control flow to a dot file and compiles it to an svg file.")
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
 
@@ -1888,7 +2044,7 @@ def run_compiled_prog(outfile, silent):
 
 
 
-def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir = "build/asm"):
+def setup_build_env(outfile, build_dir = "build", out_dir = "build/out"):
     basepath = ""
     if "/" in outfile:
         basepath = "/".join(outfile.split("/")[:-1]) + "/"
@@ -1900,14 +2056,16 @@ def setup_build_env(outfile, build_dir = "build", obj_dir = "build/obj", asm_dir
                                                                     )
 
     os.makedirs(basepath + build_dir, exist_ok = True)
-    os.makedirs(basepath + obj_dir, exist_ok = True)
-    os.makedirs(basepath + asm_dir, exist_ok = True)
+    os.makedirs(basepath + out_dir, exist_ok = True)
         
-    return (basepath + build_dir + "/" + outfile.split("/")[-1], 
-            basepath + obj_dir + "/" + outfile.split("/")[-1] + ".o", 
-            basepath + asm_dir + "/" + outfile.split("/")[-1] + ".asm",
-            os.path.realpath(basepath), 
-            )
+    return {
+    "exec_path": basepath + build_dir + "/" + outfile.split("/")[-1],
+    "obj_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".o", 
+    "asm_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".asm",
+    "dot_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".dot",
+    "src_path":  os.path.realpath(basepath),
+    "build_dir": basepath + build_dir + "/" 
+    }
 
 if __name__ == "__main__":
     argv = sys.argv
@@ -1930,6 +2088,7 @@ if __name__ == "__main__":
     b_remove = False
     b_silent = False
     b_no_type_check = False
+    b_control_flow = False
     i_dumpmem = 0
     for flag in argv:
         if b_outfile == True:
@@ -1960,6 +2119,9 @@ if __name__ == "__main__":
             elif flag == "-nrm" or flag == "--no-remove":
                 argv2.pop(0)
                 b_noremove = True
+            elif flag == "-cf" or flag == "--control-flow":
+                argv2.pop(0)
+                b_control_flow = True
             elif flag == "-dm" or flag == "--dump-memory":
                 argv2.pop(0)
                 i_dumpmem = -1
@@ -1986,27 +2148,29 @@ if __name__ == "__main__":
         sys.exit(1)
     outfile = ".".join(input_filepath.split(".")[:-1])
 
-    (build_path, obj_path, asm_path, source_dir) = setup_build_env(outfile)
+    env = setup_build_env(outfile)
+
 
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
 
-        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, source_dir);
+        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
         if b_no_type_check != True:
             type_check_program(program)
-        simulate_little_endian_linux(program, i_dumpmem, [build_path] + argv2)
+        simulate_little_endian_linux(program, i_dumpmem, [env["exec_path"]] + argv2)
     elif subc == "c" or subc == "com" or subc == "compile":
-        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, source_dir);
+        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
         if b_no_type_check != True:
             type_check_program(program)
-        generate_nasm_linux_x86_64(program, asm_path)
-        run_cmd(["nasm", "-felf64", "-o", obj_path, asm_path], b_silent)
-        run_cmd(["ld", "-o", build_path, obj_path], b_silent)
-
+        generate_nasm_linux_x86_64(program, env["asm_path"])
+        run_cmd(["nasm", "-felf64", "-o", env["obj_path"], env["asm_path"]], b_silent)
+        run_cmd(["ld", "-o", env["exec_path"], env["obj_path"]], b_silent)
+        if b_control_flow:
+            generate_control_flow_graph_as_dot_file(program, env["dot_path"])
         if b_remove == True:
-            run_cmd(["rm", "-f", asm_path, obj_path], b_silent)
+            run_cmd(["rm", "-f", env.asm_path, env["obj_path"]], b_silent)
         if b_run == True:
-            exit_code = run_compiled_prog([build_path] + argv2, b_silent)
+            exit_code = run_compiled_prog([env["exec_path"]] + argv2, b_silent)
             exit(exit_code)
     else:
         usage(prog);

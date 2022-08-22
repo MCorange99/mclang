@@ -1,6 +1,5 @@
 : returncode 1
 : stdout 0
 
-: stderr 173
-[31m[4m./tests/wrong-macro-name-type-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m7[0m [32m[[31mERR[32m][0m: [31mexpected macro name to be word but found int[0m
-
+: stderr 177
+[31m[4m./tests/wrong-macro-name-type-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m7[0m [32m[[31mERR[32m][0m: [31mexpected macro name to be `word` but found `int`[0m

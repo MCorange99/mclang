@@ -1,8 +1,9 @@
 : returncode 0
-: stdout 29
+: stdout 35
 abc
 bcd
 18446744073709551615
+65535
 
 : stderr 0
 

@@ -1,7 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 265
-[31m[4m./tests/end-cant-close-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31m`end` can only close `if`, `else` or `do` blocks for now[0m
-[32m[[31mERR[32m][0m: [31mCould not compile program due to 1 previous errors.[0m
+: stderr 181
+[31m[4m./tests/end-cant-close-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31m`end` can only close `else`, `do` or `macro` blocks for now[0m
 

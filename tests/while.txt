@@ -1,0 +1,15 @@
+: returncode 0
+: stdout 21
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
+
+: stderr 0
+

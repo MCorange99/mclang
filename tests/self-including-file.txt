@@ -1,5 +1,6 @@
-: returncode 0
+: returncode 1
 : stdout 0
 
-: stderr 0
+: stderr 165
+[31m[4m./tests/self-including-file.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m9[0m [32m[[31mERR[32m][0m: [31mfile `./self-including-file.porth` not found[0m
 

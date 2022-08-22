@@ -12,7 +12,7 @@ include "std.mcl"
 "Hello, \"World\"\n" puts // string with double quotes
 // multline string
 "
-multi
+mult
 line
 string
 " puts
@@ -46,9 +46,16 @@ string
 "------------------------------\n" puts
 
 // over
-69 420 over print drop drop
+69 420 over print 2drop
 
 "------------------------------\n" puts
 
 // big number
 1234567890987654321 print
+
+"------------------------------\n" puts
+
+// rot
+1 2 3 print print print
+1 2 3 rot print print print
+

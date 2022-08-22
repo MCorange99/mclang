@@ -1,35 +1,84 @@
 
 include "linux.mcl"
+include "string.mcl"
 
-//idk what these do
+// sizes
+macro NULL 0 end
+macro sizeof(u64) 8 end
+macro sizeof(u32) 4 end
+macro sizeof(ptr) sizeof(u64) end
 
+// util
+macro true  1 cast(bool) end
+macro false 0 cast(bool) end
+
+
+// Wrappers for common syscalls
 macro write SYS_write syscall3 end
 macro read SYS_read syscall3 end
-macro f_openat SYS_openat syscall3 end
-macro f_close SYS_close syscall1 end
+macro openat SYS_openat syscall3 end
+macro close SYS_close syscall1 end
+macro fstat SYS_fstat syscall2 end
 macro exit SYS_exit syscall1 drop end
 macro clock_nanosleep SYS_clock_nanosleep syscall4 end
+macro mmap SYS_mmap syscall6 end
 
-// macro AT_FDCWD -100 end
-// macro O_RDONLY 0 end
+macro sizeof(stat) 144 end
+macro stat.st_dev 0 + end
+macro stat.st_ino 8 + end
+macro stat.st_mode 24 + end
+macro stat.st_nlink 16 + end
+macro stat.st_uid 28 + end
+macro stat.st_gid 32 + end
+macro stat.st_rdev 40 + end
+macro stat.st_size 48 + end
+macro @stat.st_size stat.st_size @64 end
+macro stat.st_blksize 56 + end
+macro stat.st_blocks 64 + end
+macro stat.st_atim 72 + end
+macro stat.st_mtim 88 + end
+macro stat.st_ctim 104 + end
+
+macro sizeof(stat.st_dev) 8 end
+macro sizeof(stat.st_ino) 8 end
+macro sizeof(stat.st_mode) 4 end
+macro sizeof(stat.st_nlink) 8 end
+macro sizeof(stat.st_uid) 4 end
+macro sizeof(stat.st_gid) 4 end
+macro sizeof(stat.st_rdev) 8 end
+macro sizeof(stat.st_size) 8 end
+macro sizeof(stat.st_blksize) 8 end
+macro sizeof(stat.st_blocks) 8 end
+macro sizeof(stat.st_atim) 16 end
+macro sizeof(stat.st_mtim) 16 end
+macro sizeof(stat.st_ctim) 16 end
+
+
+macro AT_FDCWD -100 end
+macro O_RDONLY 0 end
+
+// 
+macro MAP_PRIVATE 2 end
+macro PROT_READ 1 end
 
 macro STD_IN 0 end
 macro STD_OUT 1 end
 macro STD_ERR 2 end
 
 
-macro puts
-    STD_OUT write drop
+macro fputs
+  write drop
 end
 
-macro gets
-    // count buf fd syscall
-    STD_IN read drop
+macro puts
+  STD_OUT fputs
 end
 
 macro eputs
-    STD_ERR write drop
+  STD_ERR fputs
 end
+
+
 
 macro 2dup
     over over
@@ -44,31 +93,21 @@ macro mod % end
 macro div / end
 macro ++ 1 + end
 macro -- 1 - end
-macro @ load end
-// same as store but ptr and int are swaped
-macro ! swap store end
 
 macro nth_argv
-    8 * argv + load64 cast(ptr)
+    8 * argv + @64 cast(ptr)
 end
 
 macro inc64
-    dup load64 1 + store64
+    dup @64 1 + swap !64
 end
 
 macro dec64
-    dup load64 1 - store64
+    dup @64 1 - swap !64
 end
 
-macro strlen
-    dup
-    while dup load 0 != do 1 + end
-    swap -
-end
-
-// args: str, pos(`here`), condition
 macro assert
-    not if
+    if not do
         eputs 
         " Assertion error: " eputs
         eputs 
@@ -78,24 +117,52 @@ macro assert
     end
 end
 
-macro streq
-    while 
-        over load 0 != 
-        over load 0 !=
-        and if 
-            over load over load = 
-        else 
-            false 
-        end
-    do
-        1 +
-        swap 1 +
-    end
+memory memcpy_size 8 end
+memory memcpy_src  8 end
+memory memcpy_dest 8 end
 
-    load 0 = 
-    swap load 0 =
-    and
+macro memcpy
+    memcpy_dest !64
+    memcpy_src  !64
+    memcpy_size !64
+    0 while dup memcpy_size @64 < do
+        dup  memcpy_src  @64 + cast(ptr) @8
+        over memcpy_dest @64 + cast(ptr) !8
+        1 +
+    end drop
 end
 
+// Custom logical not, since the intrinsic `not` is the bitwise one and does not allow
+// to properly invert a boolean.
+macro lnot
+  cast(int) 1 - cast(bool)
+end
 
+macro PUTD_BUFFER_CAP 32 end
+memory putd-buffer PUTD_BUFFER_CAP end
+macro putd // u64 --
+  if dup 0 = do
+    "0" puts
+  else
+    putd-buffer PUTD_BUFFER_CAP +
+    while over 0 > do
+      1 - dup rot
+      10 divmod
+      rot swap '0' + . swap
+    end
 
+    dup
+    putd-buffer PUTD_BUFFER_CAP + swap - swap puts
+  end
+  drop
+end
+
+// Deprecated Words
+macro .64 swap !64 end
+macro ,64 @64 end
+macro ! !8 end
+macro @ @8 end
+macro . swap ! end
+macro , @ end
+macro cstr-to-pstr cstr-to-str end
+memory mem 640000 end

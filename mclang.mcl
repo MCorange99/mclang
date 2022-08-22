@@ -1,25 +1,48 @@
 include "std.mcl"
 
 // config
-macro MEM_SIZE 640000 end
-macro PUTD_BUFFER_CAP 32 end
+macro MEM_CAPACITY 640000 end
 macro SIM_STACK_CAP 1024 end
 
 macro OP_PUSH_INT 0 end
-macro OP_PLUS 1 end
-macro OP_PRINT 2 end
+macro OP_PLUS     1 end
+macro OP_MINUS    2 end
+macro OP_PRINT    3 end
+macro OP_DUP      4 end
+macro OP_DROP     5 end
+macro OP_swap     6 end
+macro COUNT_OPS   7 end
+
+macro OPS_CAP       1024 end
+macro sizeof(Op)    16 end
+macro Op.type       0 + end
+macro Op.operand    8 + end
+macro @Op.type      Op.type @64 end
+macro !Op.type      Op.type !64 end
+macro @Op.operand   Op.operand @64 end
+macro !Op.operand   Op.operand !64 end
 
 
 // memory layout
-macro putd_buff mem end
-macro sim_stack_count putd_buff PUTD_BUFFER_CAP + end
-macro sim_stack sim_stack_count 8 + end
-macro ops_count sim_stack SIM_STACK_CAP 8 * + end
-macro ops ops_count 8 + end
+
+memory file_path_cstr  sizeof(ptr)                 end
+memory fd              sizeof(u64)                 end
+memory statbuf         sizeof(stat)                end
+memory content         sizeof(Str)                 end
+memory line            sizeof(Str)                 end
+memory word            sizeof(Str)                 end
+memory line_number     sizeof(u64)                 end
+memory line_start      sizeof(ptr)                 end
+memory sim_stack_count sizeof(u64)                 end
+memory sim_stack       sizeof(u64) SIM_STACK_CAP * end
+memory ops_count       sizeof(u64)                 end
+memory ops             sizeof(Op)  OPS_CAP *       end
+
 
 macro sim_stack_push
-    sim_stack_count @64 SIM_STACK_CAP >= if
+    if sim_stack_count @64 SIM_STACK_CAP >= do
         here ": ERROR: data stack overflow in simulation mode" eputs eputs 
+        1 exit
     end
     
     sim_stack sim_stack_count @64 8 * + !64
@@ -28,44 +51,46 @@ macro sim_stack_push
 end
 
 macro sim_stack_pop
-    sim_stack_count @64 0 = if
-        here ": ERROR: data stack underflow in simulation mode" eputs eputs 
+    if sim_stack_count @64 0 = do
+        here eputs ": ERROR: data stack underflow in simulation mode" eputs
+        1 exit
     end
     sim_stack_count dec64
 
     sim_stack sim_stack_count @64 8 *  +  @64
 end
 
-macro putd
-  dup 0 = if
-    "0" puts
-  else
-    putd_buff PUTD_BUFFER_CAP +
-    while over 0 > do
-      1 - dup rot
-      10 divmod
-      rot swap '0' + store swap
-    end
+macro parse_word_as_int // n1 s1 - ret
+    0 0 while dup word @Str.count < do
+        dup word @Str.data + @8
 
-    dup
-    putd_buff PUTD_BUFFER_CAP + swap - swap puts
-  end
-  drop
+        if dup isdigit lnot do
+        file_path_cstr @64 cast(ptr) cstr-to-str eputs
+        ":" puts line_number @64 putd
+        ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+        ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
+        1 exit
+        end
+
+        '0' -
+        rot 10 * +
+        swap
+        1 +
+    end drop
 end
 
-macro sizeof(Op) 16 end
 
-macro push_op
-    // 0: int 16: int
-    ops_count @64 sizeof(Op) * ops +
-    dup 8 + rot swap !64
-    !64
-    ops_count inc64
+macro push_op // type operand -- 
+  // TODO: assert OPS_CAP
+  ops_count @64 sizeof(Op) * ops +
+  dup rot swap !Op.operand
+  !Op.type
+  ops_count inc64
 end
 
-macro dump_ops()
+macro dump_ops
     0 while dup ops_count @64 < do
-        dup sizeof(Op) * OPS +
+        dup sizeof(Op) * ops +
         "Type: "    puts dup     @64 print
         "Operand: " puts 8 + @64 print
         "-------------\n" puts
@@ -80,22 +105,39 @@ end
 //}
 
 macro simulate_ops
+    "Exaustive implementation of ops in simulate ops." here COUNT_OPS 7 = assert
     0 while dup ops_count @64 < do
         dup sizeof(Op) * ops +
         
-        dup @64 OP_PUSH_INT = if
+        dup if @64 OP_PUSH_INT = do
             dup 8 + @64 sim_stack_push
-        else dup @64 OP_PLUS = if
+        elif dup @64 OP_PLUS = do
             sim_stack_pop // a
             sim_stack_pop // b
             +
             sim_stack_push // a + b
-        else dup @64 OP_PRINT = if
+        elif dup @64 OP_MINUS = do
+            sim_stack_pop // a
+            sim_stack_pop // b
+            -
+            sim_stack_push // a + b
+        elif dup @64 OP_DROP = do
+            sim_stack_pop // a
+            drop
+        elif dup @64 OP_DUP = do
+            sim_stack_pop // a
+
+            dup
+
+            sim_stack_push
+            sim_stack_push
+        elif dup @64 OP_PRINT = do
             sim_stack_pop
             print
         else
+            dup @64 print
             "Unreachable" here false assert
-        end end end
+        end
         drop 
         1 +
     end // while
@@ -143,23 +185,31 @@ macro compile_ops
     0 while dup ops_count @64 < do
         dup sizeof(Op) * ops +
         
-        dup @64 OP_PUSH_INT = if
+        if dup @64 OP_PUSH_INT = do
             "    ; -- push int " puts dup 8 + @64 putd " --\n" puts
             "    mov rax, " puts dup 8 + @64 putd "\n" puts
             "    push rax\n" puts
-        else dup @64 OP_PLUS = if
+        elif dup @64 OP_PLUS = do
             "    ; -- plus --\n" puts
             "    pop rax\n" puts
             "    pop rbx\n" puts
             "    add rax, rbx\n" puts
             "    push rax\n" puts
-        else dup @64 OP_PRINT = if
+        elif dup @64 OP_PRINT = do
             "    ; -- print --\n" puts
             "    pop rdi\n" puts
             "    call print\n" puts
+        elif dup @Op.type OP_DUP = do
+            "    ;; -- dup --\n" puts
+            "    pop rax\n" puts
+            "    push rax\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_DROP = do
+            "    ;; -- drop --\n" puts
+            "    pop rax\n" puts
         else
             "Unreachable" here false assert
-        end end end
+        end
         drop
         1 +
     end // while
@@ -173,7 +223,7 @@ macro compile_ops
     "segment .data\n" puts
     "segment .bss\n" puts
     "    args_ptr: resq 1\n" puts
-    "    mem: resb " puts MEM_SIZE putd "\n" puts
+    "    mem: resb " puts MEM_CAPACITY putd "\n" puts
 end // macro
 
 
@@ -192,32 +242,116 @@ macro usage
 end
 
 
-macro program 
-    OP_PUSH_INT 34 push_op
-    OP_PUSH_INT 35 push_op
-    OP_PLUS      0 push_op
-    OP_PRINT     0 push_op
-end
+macro parse_file_path
+    O_RDONLY   // flags
+    file_path_cstr @64 cast(ptr) // pathname
+    AT_FDCWD   // dirfd
+    openat
 
-macro main
-    argc 2 < if
-        usage
-        "ERROR: No subcommand provided." eputs
+    if dup 0 < do
+        "ERROR: could not open file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
         1 exit
     end
-    program
-    // TODO: Unhardcode program
-    1 nth_argv 
+
+    fd !64
+
+    if statbuf fd @64 fstat 0 < do
+        "ERROR: could not determine the size of file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
+        1 exit
+    end
+
+    statbuf @stat.st_size content !Str.count
+
+    0                        // offset
+    fd @64                   // fd
+    MAP_PRIVATE              // flags
+    PROT_READ                // prot
+    content @Str.count       // length
+    NULL                     // addr
+    mmap
+    content !Str.data
+
+    if content @Str.data cast(int) 0 < do
+        "ERROR: could not memory map file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
+        1 exit
+    end
+
+    1 line_number !64
+    while content @Str.count 0 > do
+        line content String.chop_line
+        line @Str.data line_start !64
+        while line @Str.count 0 > do
+            line String.trim_left
+            word line String.chop_word
+
+            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" 
+
+            if word @Str "+" streq do
+                OP_PLUS 0 push_op
+            elif word @Str "-" streq do
+                OP_MINUS 0 push_op
+            elif word @Str "print" streq do
+                OP_PRINT 0 push_op
+            elif word @Str "dup" streq do
+                OP_DUP 0 push_op
+            elif word @Str "drop" streq do
+                OP_DROP 0 push_op
+            else
+                OP_PUSH_INT parse_word_as_int push_op
+            end
+        end
+        line_number inc64
+    end
+    // TODO: parse_file_path does not clean up resources after itself
+end
+
+
+macro main
+    if argc 2 < do
+        usage
+        "[ERR]: No subcommand provided." eputs
+        1 exit
+    end
+
+    2 nth_argv file_path_cstr !64
+
     
-    dup "com\0" swap drop streq if
+    1 nth_argv 
+    if dup "com"c cstreq do
+        if argc 3 < do
+            usage
+            "[ERR]: No file provided.\n" eputs
+            1 exit
+        end 
+
+        parse_file_path
         compile_ops
-    else dup "sim\0" swap drop streq if
+    elif dup "sim"c cstreq do
+        if argc 3 < do
+            usage
+            "[ERR]: No file provided.\n" eputs
+            1 exit
+        end 
+
+        parse_file_path
         simulate_ops
+    elif dup "dump"c cstreq do
+        if argc 3 < do
+            usage
+            "[ERR]: No file provided.\n" eputs
+            1 exit
+        end 
+
+        parse_file_path
+        dump_ops
+    elif dup "help"c cstreq do
+        usage
+        0 exit
     else
         usage
-        "Unknown subcommand." eputs
+        "[ERR]: Unknown subcommand `" eputs dup cstr-to-str eputs "`\n" eputs
         1 exit
-    end end
+    end
     drop
 end
 

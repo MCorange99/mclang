@@ -1,8 +1,9 @@
-include "./std.mcl"
+include "std.mcl"
 
 0 while dup argc < do
-  dup nth_argv strlen
-  over nth_argv puts
+  dup nth_argv cstrlen
+  over nth_argv
+  puts
 
   "\n" puts
 

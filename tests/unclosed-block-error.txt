@@ -1,7 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 223
+: stderr 136
 [31m[4m./tests/unclosed-block-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31munclosed block[0m
-[32m[[31mERR[32m][0m: [31mCould not compile program due to 1 previous errors.[0m
 

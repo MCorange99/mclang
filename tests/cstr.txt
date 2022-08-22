@@ -1,0 +1,9 @@
+: returncode 0
+: stdout 20
+1
+0
+11
+Hello, World
+
+: stderr 0
+

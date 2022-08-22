@@ -1,8 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 391
-[31m[4m./tests/else-not-inside-if-error.mcl[0m[32m:[31m[4m3[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31m`else` can only be used in `if`-blocks[0m
-[31m[4m./tests/else-not-inside-if-error.mcl[0m[32m:[31m[4m3[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31munclosed block[0m
-[32m[[31mERR[32m][0m: [31mCould not compile program due to 2 previous errors.[0m
+: stderr 164
+[31m[4m./tests/else-not-inside-if-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31m`else` can only be used in `do` blocks[0m
 

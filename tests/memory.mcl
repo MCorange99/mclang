@@ -1,22 +1,26 @@
 include "std.mcl"
 
 // write "abc" into the memory
-mem 0 + 97 store
-mem 1 + 98 store
-mem 2 + 99 store
-mem 3 + 10 store
+97 mem 0 + !8
+98 mem 1 + !8
+99 mem 2 + !8
+10 mem 3 + !8
 
 // print "abc" to stdout
 4 mem puts
 
 // increament each character by 1 making it "bcd"
-mem 0 + dup load 1 + store
-mem 1 + dup load 1 + store
-mem 2 + dup load 1 + store
+mem 0 + dup @8 1 + swap !8
+mem 1 + dup @8 1 + swap !8
+mem 2 + dup @8 1 + swap !8
 
 // print "bcd" to stdout
 4 mem puts
 
 // print UINT64_MAX (Largest 64 bit word)
-mem 18446744073709551615 store64 
-mem load64 print
+18446744073709551615 mem !64 
+mem @64 print
+
+255 mem !8
+255 mem 1 + !8
+mem @16 print

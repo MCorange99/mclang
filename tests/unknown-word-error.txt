@@ -1,6 +1,6 @@
 : returncode 1
 : stdout 0
 
-: stderr 140
-[31m[4m./tests/unknown-word-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31mUnknown word abcdefg[0m
+: stderr 142
+[31m[4m./tests/unknown-word-error.mcl[0m[32m:[31m[4m1[0m[32m:[31m[4m1[0m [32m[[31mERR[32m][0m: [31munknown word `abcdefg`[0m
 
