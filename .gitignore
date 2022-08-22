@@ -1,9 +1,16 @@
+# Build files
 *.o
 *.asm
-output
-__pycache__
 build/
-*log.*
+output
+
+#cache
 .mypy_cache/
+__pycache__
+
+# other 
+*log.*
 tmp
 .vscode/
+
+mclang

@@ -23,15 +23,18 @@ read s_git_type
 if [ $s_git_type = "ssh" ] 
 then
     echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git . -b latest"
-    git clone https://github.com/MCorange99/mcLang.git . -b latest
+    git clone https://github.com/MCorange99/mcLang.git .
 elif [ $s_git_type = "https" ] 
 then
     echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git . -b latest"
-    git clone https://github.com/MCorange99/mcLang.git . -b latest
+    git clone https://github.com/MCorange99/mcLang.git .
 else
     echo "Unknown Type $s_git_type."
     exit
 fi
+
+cp mclang.py mclang
+chmod +x mclang
 
 echo "mcLang was sucessfully installed but you still cannot use it."
 
