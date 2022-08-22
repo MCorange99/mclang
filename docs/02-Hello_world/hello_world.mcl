@@ -1,0 +1,3 @@
+include "std.mcl"
+
+"Henlo, world!\n" puts
