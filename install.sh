@@ -4,7 +4,7 @@
 echo "Are you sure you want to install mcLang to '~/.mclang? THis will also delete any existing installs!' (y/n): "
 read b_install
 
-if [ $b_install != "y" ]
+if [ $b_install !=: "y" ]
 then
     echo "Exiting!"
     exit
@@ -21,11 +21,11 @@ echo "Do you want to clone with ssh or https? You will need to be registered on 
 (ssh/https)?: "
 read s_git_type
 
-if [ $s_git_type = "ssh" ] 
+if [ $s_git_type =: "ssh" ] 
 then
     echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git ."
     git clone https://github.com/MCorange99/mcLang.git .
-elif [ $s_git_type = "https" ] 
+elif [ $s_git_type =: "https" ] 
 then
     echo "[CMD]: git clone https://github.com/MCorange99/mcLang.git ."
     git clone https://github.com/MCorange99/mcLang.git .
