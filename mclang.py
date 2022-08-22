@@ -2009,7 +2009,7 @@ def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
     run_cmd(["dot", "-Tsvg", "-O", dot_path])
 
 def usage(exec):
-    print("Usage: %s [SUBCOMMAND] [FLAGS] [FILE]" % exec)
+    print("Usage: mclang [SUBCOMMAND] [FLAGS] [FILE]")
     print("SUBCOMMANDS:")
     print("    c, com, compile                     => Compile the program.")
     print("    s, sim, simulate                    => Simulate/interpret the program.")

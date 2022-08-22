@@ -33,7 +33,6 @@ else
     echo "Unknown Type $s_git_type."
     exit
 fi
-rm -r "$HOME/.mclang/*"
 cp mclang.py mclang
 chmod +x mclang
 
