@@ -2012,11 +2012,11 @@ def usage(exec):
     print("    c, com, compile                     => Compile the program.")
     print("    s, sim, simulate                    => Simulate/interpret the program.")
     print("FLAGS:")
-    print("    -h, --help                          => Show this help text.")
+    print("    -h,  --help                         => Show this help text.")
     print("    --unsafe                            => Skip type checking the source code")
-    print("    -r, --run                           => Run the program after compiling. Only relavent in compile mode.")
-    print("    -nrm, --no-remove                   => Disable removing the out.asm and out.o files. Only relavent in compile mode.")
-    print("    -o [FILENAME]                       => Output file.")
+    print("    -r,  --run                          => Run the program after compiling. Only relavent in compile mode.")
+    print("    -rm, --remove                       => Remove the build files. Only relavent in compile mode.")
+    print("    -o   [FILENAME]                     => Output file.")
     print("    -cf, --control-flow                 => Dumps the control flow to a dot file and compiles it to an svg file.")
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
@@ -2114,9 +2114,9 @@ if __name__ == "__main__":
             elif flag == "-s":
                 argv2.pop(0)
                 b_silent = True
-            elif flag == "-nrm" or flag == "--no-remove":
+            elif flag == "-rm" or flag == "--remove":
                 argv2.pop(0)
-                b_noremove = True
+                b_remove = True
             elif flag == "-cf" or flag == "--control-flow":
                 argv2.pop(0)
                 b_control_flow = True
