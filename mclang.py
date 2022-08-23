@@ -2141,7 +2141,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     env = setup_build_env(input_filepath)
-    print(env)
+
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
 
