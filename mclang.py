@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from copy import copy
-from curses import intrflush
-from genericpath import exists
+from pathlib import Path, PurePath
 import sys
 import subprocess
 import os
@@ -2042,27 +2041,20 @@ def run_compiled_prog(outfile, silent):
 
 
 
-def setup_build_env(outfile, build_dir = "build", out_dir = "build/out"):
-    basepath = ""
-    if "/" in outfile:
-        basepath = "/".join(outfile.split("/")[:-1]) + "/"
+def setup_build_env(sourcefile, build_dir = "./build", out_dir = "./out"):
+    base_dir = os.path.dirname(sourcefile)
+    (outfile, ext) = os.path.splitext(sourcefile)
+    outfile = PurePath(outfile).parts[-1]
+    build_dir = PurePath(build_dir)
+    out_dir = PurePath(out_dir)
 
-    elif "\\" in outfile:
-        assert False, "{red}Windows support is not implemented{reset}".format(
-                                                                red = colors.RED,
-                                                                reset = colors.RESET,
-                                                                    )
-
-    os.makedirs(basepath + build_dir, exist_ok = True)
-    os.makedirs(basepath + out_dir, exist_ok = True)
-        
     return {
-    "exec_path": basepath + build_dir + "/" + outfile.split("/")[-1],
-    "obj_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".o", 
-    "asm_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".asm",
-    "dot_path":  basepath + out_dir + "/" + outfile.split("/")[-1] + ".dot",
-    "src_path":  os.path.realpath(basepath),
-    "build_dir": basepath + build_dir + "/" 
+    "exec_path": str(Path(base_dir, build_dir)),
+    "obj_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".o",
+    "asm_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".asm",
+    "dot_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".dot",
+    "src_path":  str(base_dir),
+    "build_dir": str(os.path.join(base_dir, build_dir))
     }
 
 if __name__ == "__main__":
@@ -2144,10 +2136,8 @@ if __name__ == "__main__":
                                                     reset = colors.RESET,
                                                         ), file=sys.stderr);
         sys.exit(1)
-    outfile = ".".join(input_filepath.split(".")[:-1])
 
-    env = setup_build_env(outfile)
-
+    env = setup_build_env(input_filepath)
 
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
