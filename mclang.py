@@ -2159,7 +2159,7 @@ if __name__ == "__main__":
         if b_control_flow:
             generate_control_flow_graph_as_dot_file(program, env["dot_path"])
         if b_remove == True:
-            run_cmd(["rm", "-f", env.asm_path, env["obj_path"]], b_silent)
+            run_cmd(["rm", "-f", env["asm_path"], env["obj_path"]], b_silent)
         if b_run == True:
             exit_code = run_compiled_prog([env["exec_path"]] + argv2, b_silent)
             exit(exit_code)
