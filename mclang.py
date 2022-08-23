@@ -2042,18 +2042,21 @@ def run_compiled_prog(outfile, silent):
 
 
 def setup_build_env(sourcefile, build_dir = "./build", out_dir = "./out"):
-    base_dir = os.path.dirname(sourcefile)
+    base_dir = os.path.realpath(os.path.dirname(sourcefile))
     (outfile, ext) = os.path.splitext(sourcefile)
     outfile = PurePath(outfile).parts[-1]
     build_dir = PurePath(build_dir)
     out_dir = PurePath(out_dir)
 
+    os.makedirs(Path(base_dir, build_dir), exist_ok = True)
+    os.makedirs(Path(base_dir, build_dir, out_dir), exist_ok = True)
+
     return {
-    "exec_path": str(Path(base_dir, build_dir)),
-    "obj_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".o",
-    "asm_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".asm",
-    "dot_path":  str(Path(base_dir, build_dir , out_dir , outfile)) + ".dot",
-    "src_path":  str(base_dir),
+    "exec_path": str(Path(base_dir, build_dir, outfile)),
+    "obj_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".o",
+    "asm_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".asm",
+    "dot_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".dot",
+    "src_path":  str(sourcefile),
     "build_dir": str(os.path.join(base_dir, build_dir))
     }
 
@@ -2138,7 +2141,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     env = setup_build_env(input_filepath)
-
+    print(env)
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
 
