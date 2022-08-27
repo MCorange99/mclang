@@ -1,6 +1,7 @@
 
-include "linux.mcl"
+include "linux.mcl" // Missing 1 char D:
 include "string.mcl"
+include "colors.mcl"
 
 // sizes
 macro NULL 0 end
@@ -105,18 +106,28 @@ end
 macro dec64
     dup @64 1 - swap !64
 end
-
+//
+// assert() -> Assert if true, if not print message and exit
+// ARGS: [str: str, position: str, condition: BOOL]
+//
 macro assert
-    if not do
+    if cast(bool) do
+        2drop
+        2drop
+    else
+        Colors.RED eputs
         eputs 
-        " Assertion error: " eputs
+        ": Assertion error: " eputs
+        Colors.RESET eputs
         eputs 
         1 exit
-    else
-        drop drop drop drop
     end
 end
 
+//
+// memcpy() -> Copy data to memory easily.
+// ARGS: [data_size: INT, data: PTR, destination: PTR]
+//
 memory memcpy_size 8 end
 memory memcpy_src  8 end
 memory memcpy_dest 8 end
@@ -138,23 +149,28 @@ macro lnot
   cast(int) 1 - cast(bool)
 end
 
+//
+// putd() -> print an intager(digit) to stdout
+// ARGS: [InputNum: INT]
+// 
 macro PUTD_BUFFER_CAP 32 end
 memory putd-buffer PUTD_BUFFER_CAP end
-macro putd // u64 --
-  if dup 0 = do
-    "0" puts
-  else
-    putd-buffer PUTD_BUFFER_CAP +
-    while over 0 > do
-      1 - dup rot
-      10 divmod
-      rot swap '0' + . swap
-    end
 
-    dup
-    putd-buffer PUTD_BUFFER_CAP + swap - swap puts
-  end
-  drop
+macro putd
+    if dup 0 = do
+        "0" puts
+    else
+        putd-buffer PUTD_BUFFER_CAP +
+        while over 0 > do
+        1 - dup rot
+        10 divmod
+        rot swap '0' + swap !8 swap
+        end
+
+        dup
+        putd-buffer PUTD_BUFFER_CAP + swap - swap puts
+    end
+    drop
 end
 
 // QoL words

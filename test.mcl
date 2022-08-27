@@ -1,3 +1,7 @@
 
-69 420 + dup dup dup dup 
-print print print print print
+34 35 + print
+500 80 - print
+69000 1000 divmod drop print
+5 100 divmod swap drop print
+104 100 divmod swap drop print
+42 10 * print

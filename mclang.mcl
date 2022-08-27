@@ -5,13 +5,51 @@ macro MEM_CAPACITY 640000 end
 macro SIM_STACK_CAP 1024 end
 
 macro OP_PUSH_INT 0 end
-macro OP_PLUS     1 end
-macro OP_MINUS    2 end
-macro OP_PRINT    3 end
-macro OP_DUP      4 end
-macro OP_DROP     5 end
-macro OP_swap     6 end
-macro COUNT_OPS   7 end
+
+//arithmatics
+macro OP_PLUS       1 end
+macro OP_MINUS      2 end
+macro OP_MUL        3 end
+macro OP_DIVMOD     4 end
+macro OP_EQ         5 end
+macro OP_GT         6 end
+macro OP_LT         7 end
+macro OP_GE         8 end
+macro OP_LE         9 end
+macro OP_NE         10 end
+macro OP_SHR        11 end
+macro OP_SHL        12 end
+macro OP_OR         13 end
+macro OP_AND        14 end
+macro OP_NOT        15 end
+
+// Stack modifiers
+macro OP_PRINT      16 end
+macro OP_DUP        17 end
+macro OP_SWAP       18 end
+macro OP_DROP       19 end
+macro OP_OVER       20 end
+macro OP_ROT        21 end
+
+// Syscalls
+macro OP_SYSCALL0   22 end
+macro OP_SYSCALL1   23 end
+macro OP_SYSCALL2   24 end
+macro OP_SYSCALL3   25 end
+macro OP_SYSCALL4   26 end
+macro OP_SYSCALL5   27 end
+macro OP_SYSCALL6   28 end
+
+// type casts
+macro OP_CAST_PTR   29 end
+macro OP_CAST_INT   30 end
+macro OP_CAST_BOOL  31 end
+
+// specialised
+macro OP_ARGC       32 end
+macro OP_ARGV       33 end
+
+macro COUNT_OPS     34 end
 
 macro OPS_CAP       1024 end
 macro sizeof(Op)    16 end
@@ -105,38 +143,121 @@ end
 //}
 
 macro simulate_ops
-    "Exaustive implementation of ops in simulate ops." here COUNT_OPS 7 = assert
-    0 while dup ops_count @64 < do
+    "Exaustive implementation of ops in simulate ops." here COUNT_OPS 34 = assert
+    0 while dup ops_count @64 dup print cast(int) cast(int) < do // stuck here
         dup sizeof(Op) * ops +
         
-        dup if @64 OP_PUSH_INT = do
+        dup if @Op.type OP_PUSH_INT = do
             dup 8 + @64 sim_stack_push
-        elif dup @64 OP_PLUS = do
-            sim_stack_pop // a
-            sim_stack_pop // b
-            +
-            sim_stack_push // a + b
-        elif dup @64 OP_MINUS = do
-            sim_stack_pop // a
-            sim_stack_pop // b
-            -
-            sim_stack_push // a + b
-        elif dup @64 OP_DROP = do
-            sim_stack_pop // a
-            drop
-        elif dup @64 OP_DUP = do
-            sim_stack_pop // a
-
-            dup
-
-            sim_stack_push
-            sim_stack_push
-        elif dup @64 OP_PRINT = do
+        elif dup @Op.type OP_PLUS = do
             sim_stack_pop
-            print
+            sim_stack_pop
+            +
+            sim_stack_push
+        elif dup @Op.type OP_MINUS = do
+            sim_stack_pop
+            sim_stack_pop
+            +
+            sim_stack_push
+        elif dup @Op.type OP_MUL = do
+            sim_stack_pop
+            sim_stack_pop
+            *
+            sim_stack_push
+        elif dup @Op.type OP_DIVMOD = do
+            sim_stack_pop
+            sim_stack_pop
+            divmod
+            sim_stack_push
+            sim_stack_push
+        elif dup @Op.type OP_EQ = do
+            sim_stack_pop
+            sim_stack_pop
+            =
+            sim_stack_push
+        elif dup @Op.type OP_GT = do
+            sim_stack_pop
+            sim_stack_pop
+            >
+            sim_stack_push
+        elif dup @Op.type OP_LT = do
+            sim_stack_pop
+            sim_stack_pop
+            <
+            sim_stack_push
+        elif dup @Op.type OP_GE = do
+            sim_stack_pop
+            sim_stack_pop
+            >=
+            sim_stack_push
+        elif dup @Op.type OP_LE = do
+            sim_stack_pop
+            sim_stack_pop
+            <=
+            sim_stack_push
+        elif dup @Op.type OP_NE = do
+            sim_stack_pop
+            sim_stack_pop
+            !=
+            sim_stack_push
+        elif dup @Op.type OP_SHR = do
+            sim_stack_pop
+            sim_stack_pop
+            shr
+            sim_stack_push
+        elif dup @Op.type OP_SHL = do
+            sim_stack_pop
+            sim_stack_pop
+            shl
+            sim_stack_push
+        elif dup @Op.type OP_OR = do
+            sim_stack_pop
+            sim_stack_pop
+            or
+            sim_stack_push
+        elif dup @Op.type OP_AND = do
+            sim_stack_pop
+            sim_stack_pop
+            and
+            sim_stack_push
+        elif dup @Op.type OP_NOT = do
+            sim_stack_pop
+            not
+            sim_stack_push
+        elif dup @Op.type OP_PRINT = do
+            sim_stack_pop print
+        elif dup @Op.type OP_DUP = do
+            sim_stack_pop
+            dup
+            sim_stack_push
+            sim_stack_push
+        elif dup @Op.type OP_SWAP = do
+            sim_stack_pop
+            sim_stack_pop
+            swap
+            sim_stack_push
+            sim_stack_push
+        elif dup @Op.type OP_DROP = do
+            sim_stack_pop
+            drop
+        elif dup @Op.type OP_OVER = do
+            sim_stack_pop
+            sim_stack_pop
+            over
+            sim_stack_push
+            sim_stack_push
+            sim_stack_push
+        elif dup @Op.type OP_ROT = do
+            sim_stack_pop
+            sim_stack_pop
+            rot
+            sim_stack_push
+            sim_stack_push
+            sim_stack_push
         else
+            "Unreachable op: " puts
             dup @64 print
-            "Unreachable" here false assert
+            "Unreachable: " here false assert
         end
         drop 
         1 +
@@ -182,31 +303,258 @@ macro compile_ops
     "global _start\n" puts
     "_start:\n" puts
     "    mov [args_ptr], rsp\n" puts
+    "Exaustive implementation of ops in compile ops." here COUNT_OPS 7 = assert
     0 while dup ops_count @64 < do
         dup sizeof(Op) * ops +
         
-        if dup @64 OP_PUSH_INT = do
-            "    ; -- push int " puts dup 8 + @64 putd " --\n" puts
+        if dup @Op.type OP_PUSH_INT = do
+            "    ;; -- push int " puts dup 8 + @64 putd " --\n" puts
             "    mov rax, " puts dup 8 + @64 putd "\n" puts
             "    push rax\n" puts
-        elif dup @64 OP_PLUS = do
-            "    ; -- plus --\n" puts
+        elif dup @Op.type OP_PLUS = do
+            "    ;; -- plus --\n" puts
             "    pop rax\n" puts
             "    pop rbx\n" puts
             "    add rax, rbx\n" puts
             "    push rax\n" puts
-        elif dup @64 OP_PRINT = do
-            "    ; -- print --\n" puts
+        elif dup @Op.type OP_MINUS = do
+            "    ;; -- minus --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    sub rbx, rax\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_MUL = do
+            "    ;; -- mul --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    mul rbx\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_DIVMOD = do
+            "    ;; -- mod --\n" puts
+            "    xor rdx, rdx\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    div rbx\n" puts
+            "    push rax\n" puts
+            "    push rdx\n" puts
+        elif dup @Op.type OP_SHR = do
+            "    ;; -- shr --\n" puts
+            "    pop rcx\n" puts
+            "    pop rbx\n" puts
+            "    shr rbx, cl\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_SHL = do
+            "    ;; -- shl --\n" puts
+            "    pop rcx\n" puts
+            "    pop rbx\n" puts
+            "    shl rbx, cl\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_OR = do
+            "    ;; -- or --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    or rbx, rax\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_ROT = do
+            "    ;; -- rot --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    pop rcx\n" puts
+            "    push rbx\n" puts
+            "    push rax\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_AND = do
+            "    ;; -- and --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    and rbx, rax\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_PRINT = do
+            "    ;; -- print --\n" puts
             "    pop rdi\n" puts
             "    call print\n" puts
+        elif dup @Op.type OP_EQ = do
+            "    ;; -- equal -- \n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmove rcx, rdx\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_NOT = do
+            "    ;; -- not --\n" puts
+            "    pop rax\n" puts
+            "    not rax\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_GT = do
+            "    ;; -- gt --\n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmovg rcx, rdx\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_LT = do
+            "    ;; -- lt --\n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmovl rcx, rdx\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_GE = do
+            "    ;; -- ge --\n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmovge rcx, rdx\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_LE = do
+            "    ;; -- le --\n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmovle rcx, rdx\n" puts
+            "    push rcx\n" puts
+        elif dup @Op.type OP_NE = do
+            "    ;; -- ne --\n" puts
+            "    mov rcx, 0\n" puts
+            "    mov rdx, 1\n" puts
+            "    pop rbx\n" puts
+            "    pop rax\n" puts
+            "    cmp rax, rbx\n" puts
+            "    cmovne rcx, rdx\n" puts
+            "    push rcx\n" puts
         elif dup @Op.type OP_DUP = do
-            "    ;; -- dup --\n" puts
+            "    ;; -- dup -- \n" puts
             "    pop rax\n" puts
             "    push rax\n" puts
             "    push rax\n" puts
+        elif dup @Op.type OP_SWAP = do
+            "    ;; -- swap --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    push rax\n" puts
+            "    push rbx\n" puts
         elif dup @Op.type OP_DROP = do
             "    ;; -- drop --\n" puts
             "    pop rax\n" puts
+        elif dup @Op.type OP_OVER = do
+            "    ;; -- over --\n" puts
+            "    pop rax\n" puts
+            "    pop rbx\n" puts
+            "    push rbx\n" puts
+            "    push rax\n" puts
+            "    push rbx\n" puts
+        elif dup @Op.type OP_CAST_PTR = do
+            "    ;; -- cast(ptr) --\n" puts
+        elif dup @Op.type OP_CAST_INT = do
+            "    ;; -- cast(int) --\n" puts
+        elif dup @Op.type OP_CAST_BOOL = do
+            "    ;; -- cast(bool) --\n" puts
+        elif dup @Op.type OP_ARGC = do
+            "    ; -- argc --\n" puts
+            "    mov rax, [args_ptr]\n" puts
+            "    mov rax, [rax]\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_ARGV = do
+            "    ; -- argv --\n" puts
+            "    mov rax, [args_ptr]\n" puts
+            "    add rax, 8\n" puts
+            "    push rax\n" puts
+        // elif dup @Op.type OP_HERE = do
+        //     value = ("%s:%d:%d" % op.token.loc).encode('utf-8')
+        //     n = len(value)
+        //     "    ;; -- here --\n" puts
+        //     "    mov rax, %d\n" puts
+        //     "    push rax\n" puts
+        //     "    push str_%d\n" puts
+        //     strs.append(value)
+        // elif dup @Op.type OP_LOAD8 = do
+        //     "    ;; -- forth load --\n" puts
+        //     "    pop rax\n" puts
+        //     "    xor rbx, rbx\n" puts
+        //     "    mov bl, [rax]\n" puts
+        //     "    push rbx\n" puts
+        // elif dup @Op.type OP_STORE8 = do
+        //     "    ;; -- store --\n" puts
+        //     "    pop rax\n" puts
+        //     "    pop rbx\n" puts
+        //     "    mov [rax], bl\n" puts
+        // elif dup @Op.type OP_LOAD64 = do
+        //     "    ;; -- forth load64 --\n" puts
+        //     "    pop rax\n" puts
+        //     "    xor rbx, rbx\n" puts
+        //     "    mov rbx, [rax]\n" puts
+        //     "    push rbx\n" puts
+        // elif dup @Op.type OP_STORE64 = do
+        //     "    ;; -- forth store64 --\n" puts
+        //     "    pop rax\n" puts
+        //     "    pop rbx\n" puts
+        //     "    mov [rax], rbx\n" puts
+        elif dup @Op.type OP_SYSCALL0 = do
+            "    ;; -- syscall0 --\n" puts
+            "    pop rax\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL1 = do
+            "    ;; -- syscall1 --\n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL2 = do
+            "    ;; -- syscall2 -- \n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    pop rsi\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL3 = do
+            "    ;; -- syscall3 --\n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    pop rsi\n" puts
+            "    pop rdx\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL4 = do
+            "    ;; -- syscall4 --\n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    pop rsi\n" puts
+            "    pop rdx\n" puts
+            "    pop r10\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL5 = do
+            "    ;; -- syscall5 --\n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    pop rsi\n" puts
+            "    pop rdx\n" puts
+            "    pop r10\n" puts
+            "    pop r8\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
+        elif dup @Op.type OP_SYSCALL6 = do
+            "    ;; -- syscall6 --\n" puts
+            "    pop rax\n" puts
+            "    pop rdi\n" puts
+            "    pop rsi\n" puts
+            "    pop rdx\n" puts
+            "    pop r10\n" puts
+            "    pop r8\n" puts
+            "    pop r9\n" puts
+            "    syscall\n" puts
+            "    push rax\n" puts
         else
             "Unreachable" here false assert
         end
@@ -284,18 +632,92 @@ macro parse_file_path
             line String.trim_left
             word line String.chop_word
 
-            here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" 
+            "Exhaustive handling of Op types in parse-file-path\n" here COUNT_OPS 34 = assert
 
             if word @Str "+" streq do
                 OP_PLUS 0 push_op
             elif word @Str "-" streq do
                 OP_MINUS 0 push_op
+            elif word @Str "*" streq do
+                OP_MUL 0 push_op
+            elif word @Str "divmod" streq do
+                OP_DIVMOD 0 push_op
             elif word @Str "print" streq do
                 OP_PRINT 0 push_op
+            elif word @Str "=" streq do
+                OP_EQ 0 push_op
+            elif word @Str ">" streq do
+                OP_GT 0 push_op
+            elif word @Str "<" streq do
+                OP_LT 0 push_op
+            elif word @Str ">=" streq do
+                OP_GE 0 push_op
+            elif word @Str "<=" streq do
+                OP_LE 0 push_op
+            elif word @Str "!=" streq do
+                OP_NE 0 push_op
+            elif word @Str "not" streq do
+                OP_NOT 0 push_op
+            elif word @Str "shr" streq do
+                OP_SHR 0 push_op
+            elif word @Str "shl" streq do
+                OP_SHL 0 push_op
+            elif word @Str "or" streq do
+                OP_OR 0 push_op
+            elif word @Str "and" streq do
+                OP_AND 0 push_op
             elif word @Str "dup" streq do
                 OP_DUP 0 push_op
+            elif word @Str "swap" streq do
+                OP_SWAP 0 push_op
             elif word @Str "drop" streq do
                 OP_DROP 0 push_op
+            elif word @Str "over" streq do
+                OP_OVER 0 push_op
+            // elif word @Str "!8" streq do
+            //     OP_STORE8 0 push_op
+            // elif word @Str "@8" streq do
+            //     OP_LOAD8 0 push_op
+            // elif word @Str "!16" streq do
+            //     OP_STORE16 0 push_op
+            // elif word @Str "@16" streq do
+            //     OP_LOAD16 0 push_op
+            // elif word @Str "!32" streq do
+            //     OP_STORE32 0 push_op
+            // elif word @Str "@32" streq do
+            //     OP_LOAD32 0 push_op
+            // elif word @Str "!64" streq do
+            //     OP_STORE64 0 push_op
+            // elif word @Str "@64" streq do
+            //     OP_LOAD64 0 push_op
+            // elif word @Str "cast(ptr)" streq do
+            //     OP_CAST_PTR 0 push_op
+            // elif word @Str "cast(int)" streq do
+            //     OP_CAST_INT 0 push_op
+            // elif word @Str "cast(bool)" streq do
+            //     OP_CAST_BOOL 0 push_op
+            // elif word @Str "syscall0" streq do
+            //     OP_SYSCALL0 0 push_op
+            // elif word @Str "syscall1" streq do
+            //     OP_SYSCALL1 0 push_op
+            // elif word @Str "syscall2" streq do
+            //     OP_SYSCALL2 0 push_op
+            // elif word @Str "syscall3" streq do
+            //     OP_SYSCALL3 0 push_op
+            // elif word @Str "syscall4" streq do
+            //     OP_SYSCALL4 0 push_op
+            // elif word @Str "syscall5" streq do
+            //     OP_SYSCALL5 0 push_op
+            // elif word @Str "syscall6" streq do
+            //     OP_SYSCALL6 0 push_op
+            // elif word @Str "argc" streq do
+            //     OP_ARGC 0 push_op
+            // elif word @Str "argv" streq do
+            //     OP_ARGV 0 push_op
+            // elif word @Str "here" streq do
+            //     OP_HERE 0 push_op
+            elif word @Str "rot" streq do
+                OP_ROT 0 push_op
             else
                 OP_PUSH_INT parse_word_as_int push_op
             end
@@ -354,5 +776,4 @@ macro main
     end
     drop
 end
-
 main

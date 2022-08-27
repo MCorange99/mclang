@@ -9,6 +9,8 @@ from enum import Enum, IntEnum, auto
 from dataclasses import dataclass
 import traceback
 from time import sleep
+import time
+import re
 
 builtin_lib_path = ["./include"]
 
@@ -137,8 +139,6 @@ class Intrinsic(Enum):
     OR=auto()
     AND=auto()
     NOT=auto()
-    TRUE=auto()
-    FALSE=auto()
     PRINT=auto()
 
     # stack ops
@@ -231,6 +231,7 @@ def get_cstr_from_mem(mem: bytearray, ptr: int) -> bytes:
     return mem[ptr:end]
 
 def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
+
     AT_FDCWD=-100
     O_RDONLY=0
     ENOENT=2
@@ -323,7 +324,7 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                 else:
                     ip += 1
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 44, "Exhaustive handling of intrinsic in simulate_little_endian_linux() " + str(len(Intrinsic)) 
+                assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in simulate_little_endian_linux() " + str(len(Intrinsic)) 
                 if op.operand == Intrinsic.PLUS:
                     a = stack.pop()
                     b = stack.pop()
@@ -511,7 +512,7 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     syscall_number = stack.pop()
                     arg1 = stack.pop()
                     if syscall_number == 60: # SYS_exit
-                        exit(arg1)
+                        return arg1
                     elif syscall_number == 3: # SYS_close
                         fds[arg1].close()
                         stack.append(0)
@@ -602,7 +603,7 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
         print(mem[:debug])
         print("[INFO] Stack dump")
         print(stack)
-        
+
 class DataType(IntEnum):
     INT = auto()
     PTR = auto()
@@ -650,7 +651,7 @@ def type_check_program(program: Program):
             ctx.stack.append((DataType.PTR, op.token))
             ctx.ip += 1
         elif op.typ == OpType.INTRINSIC:
-            assert len(Intrinsic) == 44, "Exhaustive intrinsic handling in type_check_program()"
+            assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in type_check_program()"
             assert isinstance(op.operand, Intrinsic), "This could be a bug in compilation step"
             if op.operand == Intrinsic.PLUS:
                 assert len(DataType) == 3, "Exhaustive type handling in PLUS intrinsic"
@@ -1244,7 +1245,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
                 out.write("    jz addr_%d\n" % op.operand)
             elif op.typ == OpType.INTRINSIC:
-                assert len(Intrinsic) == 44, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64() " + str(len(Intrinsic))
+                assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64() " + str(len(Intrinsic))
                 if op.operand == Intrinsic.PLUS:
                     out.write("    ;; -- plus --\n")
                     out.write("    pop rax\n")
@@ -1524,7 +1525,7 @@ KEYWORD_NAMES = {
 }
 
 
-assert len(Intrinsic) == 44, "Exhaustive INTRINSIC_NAMES definition"
+assert len(Intrinsic) == 42, "Exhaustive INTRINSIC_NAMES definition"
 INTRINSIC_BY_NAMES = {
     '+': Intrinsic.PLUS,
     '-': Intrinsic.MINUS,
@@ -1760,11 +1761,11 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     exit(1)
             elif token.value == Keyword.MEMORY:
                 if len(rtokens) == 0:
-                    compiler_error_with_expansion_stack(token, "expected memory name but found nothing")
+                    compiler_error(token, "expected memory name but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.WORD:
-                    compiler_error_with_expansion_stack(token, "expected memory name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
+                    compiler_error(token, "expected memory name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 memory_name = token.value
@@ -1796,7 +1797,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                             mem_size_stack.append(a * b)
                         elif token.value in macros:
                             if token.expanded_count >= expansion_limit:
-                                compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                                compiler_error(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                                 exit(1)
                             rtokens += reversed(expand_macro(macros[token.value], token))
                         else:
@@ -1878,10 +1879,15 @@ def find_string_literal_end(line: str, start: int) -> int:
 
 def lex_lines(file_path: str, lines: List[str]) -> Generator[Token, None, None]:
     assert len(TokenType) == 6, 'Exhaustive handling of token types in lex_lines'
+
+    # Very dumb way of handling multiline comments, but it works
+    # _file = "__NUVTYFnTbhBTVbujbYFYUBUU__".join(lines)
+    # lines = re.sub("(?s)/\\*.*?\\*/", "", _file).split("__NUVTYFnTbhBTVbujbYFYUBUU__")
+
     row = 0
     str_literal_buf = ""
     while row < len(lines):
-        line = lines[row]
+        line = re.sub("(?s)/\\*.*?\\*/", "", lines[row])
         col = find_col(line, 0, lambda x: not x.isspace())
         col_end = 0
         while col < len(line):
@@ -2020,22 +2026,24 @@ def usage(exec):
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
 
 
-def run_compiled_prog(outfile, silent):
+def run_compiled_prog(outfile, silent, time):
     if silent != True:
-        print("Running \"%s\":" % " ".join(outfile));
+        print(colors.VIOLET + ("Running \"%s\":" % " ".join(outfile)) + colors.RESET);
     exit_code = subprocess.call(outfile);
     if silent != True:
         if exit_code == 0:
-            print("\n{green}Process exited normally.{reset}".format(
+            print("\n{green}Process exited normally in {time} seconds.{reset}".format(
                                                     green = colors.GREEN,
                                                     reset = colors.RESET,
+                                                    time  = round(time, 4)
                                                         ))
         else:
-            print("\n{red}Process exited abnormally with {underline}{code}{reset}{red} exit code.".format(
+            print("\n{red}Process exited abnormally with {underline}{code}{reset}{red} exit code in {time} seconds.".format(
                                                                     red = colors.RED,
                                                                     reset = colors.RESET,
                                                                     underline = colors.UNDERLINE,
-                                                                    code=exit_code
+                                                                    code=exit_code,
+                                                                    time=round(time, 4)
                                                                         ))
     return exit_code
 
@@ -2061,6 +2069,7 @@ def setup_build_env(sourcefile, build_dir = "./build", out_dir = "./out"):
     }
 
 if __name__ == "__main__":
+    start_time = time.time()
     argv = sys.argv
     prog, *argv = argv
     if len(argv) < 1:
@@ -2141,19 +2150,52 @@ if __name__ == "__main__":
         sys.exit(1)
 
     env = setup_build_env(input_filepath)
-
     # print(subc)
     if subc == "s" or subc == "sim" or subc == "simulate":
+        # Tokenising
+        token_comp_start_time = time.time()
+        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
+        token_comp_time = time.time() - token_comp_start_time
+        if b_silent != True:
+            print("[INFO]: Tokenisation took {} Seconds".format(round(token_comp_time,4)))
 
-        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
+        # TC
         if b_no_type_check != True:
+            tc_start_time = time.time()
             type_check_program(program)
+            tc_time = time.time() - tc_start_time
+            if b_silent != True:
+                print("[INFO]: Typechecking took {} Seconds".format(round(tc_time,4)))
+
+        # Sim
+        sim_start = time.time()
         simulate_little_endian_linux(program, i_dumpmem, [env["exec_path"]] + argv2)
+        sim_time = time.time() - sim_start
+        if b_silent != True:
+            print("[INFO]: Simulation took {} Seconds".format(round(sim_time,4)))
+            print("[INFO]: Everything took {} Seconds".format(round((time.time() - start_time), 4)))
     elif subc == "c" or subc == "com" or subc == "compile":
+        # Tokenising
+        token_comp_start_time = time.time()
         program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
+        token_comp_time = time.time() - token_comp_start_time
+        if b_silent != True:
+            print("[INFO]: Tokenisation took {} Seconds".format(round(token_comp_time,4)))
+
+        # TC
         if b_no_type_check != True:
+            tc_start_time = time.time()
             type_check_program(program)
+            tc_time = time.time() - tc_start_time
+            if b_silent != True:
+                print("[INFO]: Typechecking took {} Seconds".format(round(tc_time,4)))
+        # Generating
+        asm_start_time = time.time()
         generate_nasm_linux_x86_64(program, env["asm_path"])
+        asm_time = time.time() - asm_start_time
+        if b_silent != True:
+            print("[INFO]: ASM Generation took {} Seconds".format(round(asm_time,4)))
+
         run_cmd(["nasm", "-felf64", "-o", env["obj_path"], env["asm_path"]], b_silent)
         run_cmd(["ld", "-o", env["exec_path"], env["obj_path"]], b_silent)
         if b_control_flow:
@@ -2161,8 +2203,10 @@ if __name__ == "__main__":
         if b_remove == True:
             run_cmd(["rm", "-f", env["asm_path"], env["obj_path"]], b_silent)
         if b_run == True:
-            exit_code = run_compiled_prog([env["exec_path"]] + argv2, b_silent)
+            exit_code = run_compiled_prog([env["exec_path"]] + argv2, b_silent, (time.time() - start_time))
             exit(exit_code)
+        if b_silent != True:
+            print("[INFO]: Everything took {} Seconds".format(round((time.time() - start_time), 4)))
     else:
         usage(prog);
 
