@@ -11,8 +11,8 @@ import traceback
 from time import sleep
 import time
 import re
-
-builtin_lib_path = ["~/.mclang/include", "./include"]
+home_dir=os.getenv("HOME")
+builtin_lib_path = [home_dir + "/.mclang/include", "./include"]
 
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
