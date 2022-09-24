@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-from concurrent.futures import process
 from copy import copy
-from optparse import Option
 from pathlib import Path, PurePath
 import sys
 import subprocess
@@ -15,8 +13,6 @@ import time
 import re
 home_dir=os.getenv("HOME")
 builtin_lib_path = ["./include", home_dir + "/.mclang/include"]
-
-X86_64_RET_STACK_CAP=4096
 
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
@@ -151,8 +147,9 @@ class Keyword(Enum):
     WHILE = auto();
     MACRO = auto();
     MEMORY = auto();
+
+    #other
     INCLUDE = auto();
-    FUNCTION = auto();
 
 class Intrinsic(Enum):
     # arithmatices
@@ -181,48 +178,44 @@ class Intrinsic(Enum):
     ROT=auto()
 
     # memory
-    LOAD8=auto();
-    STORE8=auto();
-    LOAD16=auto();
-    STORE16=auto();
-    LOAD32=auto();
-    STORE32=auto();
-    LOAD64=auto();
-    STORE64=auto();
+    LOAD8=auto()
+    STORE8=auto()
+    LOAD16=auto()
+    STORE16=auto()
+    LOAD32=auto()
+    STORE32=auto()
+    LOAD64=auto()
+    STORE64=auto()
 
     # syscalls
-    SYSCALL0=auto();
-    SYSCALL1=auto();
-    SYSCALL2=auto();
-    SYSCALL3=auto();
-    SYSCALL4=auto();
-    SYSCALL5=auto();
-    SYSCALL6=auto();
+    SYSCALL0=auto()
+    SYSCALL1=auto()
+    SYSCALL2=auto()
+    SYSCALL3=auto()
+    SYSCALL4=auto()
+    SYSCALL5=auto()
+    SYSCALL6=auto()
 
     # other
-    ARGC=auto();
-    ARGV=auto();
-    CAST_PTR=auto();
-    CAST_INT=auto();
-    CAST_BOOL=auto();
-    HERE=auto();
+    ARGC=auto()
+    ARGV=auto()
+    CAST_PTR=auto()
+    CAST_INT=auto()
+    CAST_BOOL=auto()
+    HERE=auto()
 
 class OpType(Enum):
-    PUSH_INT=auto();
-    PUSH_MEM=auto();
-    PUSH_STR=auto();
-    PUSH_CSTR=auto();
-    INTRINSIC=auto();
-    IF=auto();
-    END=auto();
-    ELSE=auto();
+    PUSH_INT=auto()
+    PUSH_MEM=auto()
+    PUSH_STR=auto()
+    PUSH_CSTR=auto()
+    INTRINSIC=auto()
+    IF=auto()
+    END=auto()
+    ELSE=auto()
     ELIF = auto();
-    WHILE=auto();
-    DO=auto();
-    SKIP_FUNCTION=auto();
-    PREP_FUNCTION=auto();
-    RETURN=auto();
-    CALL=auto();
+    WHILE=auto()
+    DO=auto()
 
 OpAddr = int
 MemAddr= int
@@ -295,7 +288,6 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
     CLOCK_MONOTONIC=1
 
     stack: List[int] = []
-    ret_stack: List[OpAddr] = []
     mem = bytearray(SIM_NULL_POINTER_PADDING + SIM_STR_CAPACITY + SIM_ARGV_CAPACITY + program.memory_capacity)
 
     str_buf_ptr  = SIM_NULL_POINTER_PADDING
@@ -323,16 +315,11 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
         mem[argv_ptr:argv_ptr+8] = arg_ptr.to_bytes(8, byteorder='little')
         argc += 1
         assert argc*8 <= SIM_ARGV_CAPACITY, "Argv buffer, overflow"
-    # print(program)
-
-    # for p in program.ops:
-    #     print(p)
 
     ip = 0
     while ip < len(program.ops):
-        assert len(OpType) == 15, "Exhaustive op handling in simulate_little_endian_linux(%d)" % len(OpType)
+        assert len(OpType) == 11, "Exhaustive op handling in simulate_little_endian_linux"
         op = program.ops[ip]
-        # print(op)
         try:
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
@@ -386,17 +373,6 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     ip = op.operand
                 else:
                     ip += 1
-            elif op.typ == OpType.SKIP_FUNCTION:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
-                ip = op.operand
-            elif op.typ == OpType.PREP_FUNCTION:
-                ip += 1
-            elif op.typ == OpType.RETURN:
-                ip = ret_stack.pop()
-            elif op.typ == OpType.CALL:
-                assert isinstance(op.operand, OpAddr), "This could be a bug in the parsing step"
-                ret_stack.append(ip + 1)
-                ip = op.operand
             elif op.typ == OpType.INTRINSIC:
                 assert len(Intrinsic) == 42, "Exhaustive handling of intrinsic in simulate_little_endian_linux() " + str(len(Intrinsic)) 
                 if op.operand == Intrinsic.PLUS:
@@ -699,8 +675,6 @@ class Context:
     ip: OpAddr
 
 def type_check_program(program: Program):
-    compiler_note(None, "Type checking is disabled until function implementation is finalised")
-    return
     visited_dos: Dict[OpAddr, DataStack] = {}
     contexts: List[Context] = [Context(stack=[], ip=0)]
     while len(contexts) > 0:
@@ -712,7 +686,7 @@ def type_check_program(program: Program):
             contexts.pop()
             continue
         op = program.ops[ctx.ip]
-        assert len(OpType) == 11, "Exhaustive ops handling in type_check_program(%s)" % len(OpType)
+        assert len(OpType) == 11, "Exhaustive ops handling in type_check_program()"
         if op.typ == OpType.PUSH_INT:
             ctx.stack.append((DataType.INT, op.token))
             ctx.ip += 1
@@ -1260,12 +1234,10 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
         out.write("_start:\n")
         out.write("    ; -- init argv\n")
         out.write("    mov [args_ptr], rsp\n")
-        out.write("    mov rax, ret_stack_end\n")
-        out.write("    mov [ret_stack_rsp], rax\n")
         out.write("    \n")
         for ip in range(len(program.ops)):
             op = program.ops[ip]
-            assert len(OpType) == 15, "Exhaustive ops handling in generate_nasm_linux_x86_64(%d)" % len(OpType)
+            assert len(OpType) == 11, "Exhaustive ops handling in generate_nasm_linux_x86_64"
             out.write("addr_%d:\n" % ip)
             if op.typ == OpType.PUSH_INT:
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
@@ -1315,26 +1287,6 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
                 out.write("    test rax, rax\n")
                 assert isinstance(op.operand, int), "This could be a bug in the compilation step"
                 out.write("    jz addr_%d\n" % op.operand)
-            elif op.typ == OpType.SKIP_FUNCTION:
-                out.write("    ;; -- skip func --\n")
-                assert isinstance(op.operand, OpAddr), f"This could be a bug in the parsing step: {op.operand}"
-                out.write("    jmp addr_%d\n" % op.operand)
-            elif op.typ == OpType.PREP_FUNCTION:
-                out.write("    ;; -- prep function -- \n")
-                out.write("    mov [ret_stack_rsp], rsp\n")
-                out.write("    mov rsp, rax\n")
-            elif op.typ == OpType.CALL:
-                out.write("    ; call \n")
-                out.write("    mov rax, rsp\n")
-                out.write("    mov rsp, [ret_stack_rsp]\n")
-                out.write("    call addr_%d\n" % op.operand)
-                out.write("    mov [ret_stack_rsp], rsp\n")
-                out.write("    mov rsp, rax\n")
-            elif op.typ == OpType.RETURN:
-                out.write("    ; return \n")
-                out.write("    mov rax, rsp\n")
-                out.write("    mov rsp, [ret_stack_rsp]\n")
-                out.write("    ret\n")
             elif op.typ == OpType.INTRINSIC:
                 assert len(Intrinsic) == 42, "Exhaustive intrinsic handling in generate_nasm_linux_x86_64() " + str(len(Intrinsic))
                 if op.operand == Intrinsic.PLUS:
@@ -1599,13 +1551,10 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
             
         out.write("segment .bss\n")
         out.write("    args_ptr: resq 1\n")
-        out.write("    ret_stack_rsp: resq 1\n")
-        out.write("    ret_stack: resb %d\n" % X86_64_RET_STACK_CAP)
-        out.write("    ret_stack_end: resq 1\n")
         out.write("    mem: resb %d\n" % program.memory_capacity)
 
 
-assert len(Keyword) == 10, "Exhaustive KEYWORD_NAMES definition."
+assert len(Keyword) == 9, "Exhaustive KEYWORD_NAMES definition."
 KEYWORD_NAMES = {
     'if': Keyword.IF,
     'end': Keyword.END,
@@ -1616,7 +1565,6 @@ KEYWORD_NAMES = {
     'macro': Keyword.MACRO,
     'memory': Keyword.MEMORY,
     'include': Keyword.INCLUDE,
-    "fn": Keyword.FUNCTION
 }
 
 
@@ -1700,8 +1648,6 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
     rtokens: List[Token] = list(reversed(tokens))
     macros: Dict[str, Macro] = {}
     memories: Dict[str, Memory] = {}
-    functions: Dict[str, OpAddr] = {}
-    curr_func: Option[OpAddr] = None
     ip: OpAddr = 0;
     while len(rtokens) > 0:
         token = rtokens.pop()
@@ -1718,9 +1664,6 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 rtokens += reversed(expand_macro(macros[token.value], token))
             elif token.value in memories:
                 program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value].offset))
-                ip += 1
-            elif token.value in functions:
-                program.ops.append(Op(typ=OpType.CALL, token=token, operand=functions[token.value]))
                 ip += 1
             else:
                 print(token.value)
@@ -1744,7 +1687,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
             program.ops.append(Op(typ=OpType.PUSH_INT, operand=token.value, token=token));
             ip += 1
         elif token.typ == TokenType.KEYWORD:
-            assert len(Keyword) == 10, "Exhaustive keywords handling in parse_program_from_tokens()"
+            assert len(Keyword) == 9, "Exhaustive keywords handling in parse_program_from_tokens()"
             if token.value == Keyword.IF:
                 program.ops.append(Op(typ=OpType.IF, token=token))
                 stack.append(ip)
@@ -1790,14 +1733,12 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`else` can only close `do`-blocks that are preceded by `if` or `elif`')
                     exit(1)
             elif token.value == Keyword.END:
+                program.ops.append(Op(typ=OpType.END, token=token))
                 block_ip = stack.pop()
-                
                 if program.ops[block_ip].typ == OpType.ELSE:
-                    program.ops.append(Op(typ=OpType.END, token=token))
                     program.ops[block_ip].operand = ip
                     program.ops[ip].operand = ip + 1
                 elif program.ops[block_ip].typ == OpType.DO:
-                    program.ops.append(Op(typ=OpType.END, token=token))
                     assert program.ops[block_ip].operand is not None
                     pre_do_ip = program.ops[block_ip].operand
 
@@ -1815,13 +1756,10 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     else:
                         compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`end` can only close `do` blocks that are preceded by `if`, `while` or `elif`')
                         exit(1)
-                elif program.ops[block_ip].typ == OpType.SKIP_FUNCTION:
-                    program.ops.append(Op(typ=OpType.RETURN, token=token))
-                    program.ops[block_ip].operand = ip + 1
-                    curr_func = None
                 else:
                     compiler_error_with_expansion_stack(program.ops[block_ip].token, '`end` can only close `else`, `do` or `macro` blocks for now')
                     exit(1)
+                ip += 1
             elif token.value == Keyword.WHILE:
                 program.ops.append(Op(typ=OpType.WHILE, token=token))
                 stack.append(ip)
@@ -1951,40 +1889,16 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     else:
                         macro.tokens.append(token)
                         if token.typ == TokenType.KEYWORD:
-                            assert len(Keyword) == 10, "Exhaustive handling of keywords in parsing macro body"
-                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO, Keyword.MEMORY, Keyword.FUNCTION]:
+                            assert len(Keyword) == 9, "Exhaustive handling of keywords in parsing macro body"
+                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO, Keyword.MEMORY]:
                                 nesting_depth += 1
                             elif token.value == Keyword.END:
                                 nesting_depth -= 1
                 if token.typ != TokenType.KEYWORD or token.value != Keyword.END:
                     compiler_error_with_expansion_stack(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value, ))
                     exit(1)
-            elif token.value == Keyword.FUNCTION:
-                if curr_func is not None: 
-                    # TODO: Allow defining functions inside of functions AKA scoped functions
-                    compiler_error_with_expansion_stack(token, "Definition of functions inside of other functions is currently not allowed")
-                    compiler_note(program.ops[curr_func].token.loc, "Parent function is defined here")
-                else:
-                    program.ops.append(Op(typ=OpType.SKIP_FUNCTION, token=token))
-                    curr_func = ip
-                    stack.append(ip)
-                    ip += 1
-
-                    program.ops.append(Op(typ=OpType.PREP_FUNCTION, token=token))
-                    ip += 1
-
-                    if len(rtokens) == 0:
-                        compiler_error_with_expansion_stack(token, "expected function name but found nothing")
-                        exit(1)
-                    token = rtokens.pop()
-                    if token.typ != TokenType.WORD:
-                        compiler_error_with_expansion_stack(token, "expected function name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
-                        exit(1)
-                    func_name = token.value
-                    functions[func_name] = curr_func + 1
             else:
                 assert False, 'unreachable';
-            # IF keyword end
         else:
             assert False, 'unreachable'
 
