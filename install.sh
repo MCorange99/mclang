@@ -4,7 +4,7 @@
 echo "Are you sure you want to install mcLang to '~/.mclang? THis will also delete any existing installs!' (y/n): "
 read b_install
 
-if [ $b_install != "y" ]
+if [ "$b_install" != "y" ]
 then
     echo "Exiting!"
     exit

@@ -128,7 +128,7 @@ macro div / end
 macro ++ 1 + end
 macro -- 1 - end
 
-macro nth_argv
+macro nth-argv
     8 * argv + @64 cast(ptr)
 end
 
