@@ -2249,7 +2249,7 @@ def main(argc: int, argv: List[str]):
         if config.control_flow:
             generate_control_flow_graph_as_dot_file(program, env["dot_path"])
         if config.remove == True:
-            run_cmd(["rm", "-f", f"{config.outfile}", f"{config.outfile}.o",f"{config.outfile}.asm"], config.silent)
+            run_cmd(["rm", "-f", f"{config.outfile}.o",f"{config.outfile}.asm"], config.silent)
         if config.run == True:
             exit_code = run_compiled_prog(config.outfile, config.silent, (time.time() - start_time))
             exit(exit_code)
