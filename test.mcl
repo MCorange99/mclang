@@ -1,14 +1,2 @@
 include "std.mcl"
-
-memory split   sizeof(Str) end
-memory line    sizeof(Str) end
-
-
-"Hello,every,body,1,2,3" line !Str
-
-',' split line str-chop-by-delim
-
-while split @Str.count 0 > do
-    split @Str puts
-    "\n" puts
-end
+"Henlo, world!" puts

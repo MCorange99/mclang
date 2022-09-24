@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from copy import copy
 from pathlib import Path, PurePath
+import pathlib
 import sys
 import subprocess
 import os
@@ -12,7 +13,7 @@ from time import sleep
 import time
 import re
 home_dir=os.getenv("HOME")
-builtin_lib_path = ["./include", home_dir + "/.mclang/include"]
+INCLUDE_SEARCH_DIRS = ["./include", home_dir + "/.mclang/include"]
 
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
@@ -83,7 +84,7 @@ def eprint(txt, loc=None):
 
 def nprint(txt, loc=None):
     if loc == None:
-        print("{green}[{blue}NOTE{green}]{rs}: {blue}{text}{rs}".format(
+        print("{green}[{blue}NOTE{green}]{rs}: {text}{rs}".format(
                 text=txt,
                 blue=colors.BLUE,
                 green=colors.GREEN,
@@ -91,7 +92,7 @@ def nprint(txt, loc=None):
                 rs=colors.RESET
             ))
     else:
-        print("{red}{lnk}{fn}{rs}{green}:{red}{lnk}{ln}{rs}{green}:{red}{lnk}{col}{rs} {green}[{blue}NOTE{green}]{rs}: {blue}{text}{rs}".format(
+        print("{red}{lnk}{fn}{rs}{green}:{red}{lnk}{ln}{rs}{green}:{red}{lnk}{col}{rs} {green}[{blue}NOTE{green}]{rs}: {text}{rs}".format(
                 fn = loc[0],
                 ln = loc[1],
                 col= loc[2],
@@ -102,6 +103,27 @@ def nprint(txt, loc=None):
                 lnk=colors.UNDERLINE,
                 rs=colors.RESET
             ))
+
+def iprint(txt, loc=None):
+    if loc != None:
+        print("{green}{lnk}{fn}{rs}{green}:{red}{lnk}{ln}{rs}{green}:{red}{lnk}{col}{rs} {green}[INFO{green}]{rs}: {text}{rs}".format(
+            fn = loc[0],
+            ln = loc[1],
+            col= loc[2],
+            text=txt,
+            # red=colors.,
+            green=colors.GREEN,
+            lnk=colors.UNDERLINE,
+            rs=colors.RESET
+        ))
+    else:
+        print("{green}[INFO{green}]{rs}: {text}{rs}".format(
+            text=txt,
+            red=colors.RED,
+            green=colors.GREEN,
+            lnk=colors.UNDERLINE,
+            rs=colors.RESET
+        ))
 
 
 def not_enough_arguments(op):
@@ -270,7 +292,14 @@ def check_word_redefinition(token, memories, macros):
 
 def run_cmd(cmd, silent=False):
     if silent != True:
-        print("[CMD]: %s" % ' '.join(cmd));
+        print("{green}[{purp}CMD{green}]{rs}: {text}{rs}".format(
+            text=' '.join(cmd),
+            purp=colors.VIOLET,
+            green=colors.GREEN,
+            lnk=colors.UNDERLINE,
+            rs=colors.RESET
+        ))
+        
     subprocess.call(cmd);
 
 
@@ -597,11 +626,11 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
                     elif syscall_number == 257: # SYS_openat
                         dirfd = arg1
                         pathname_ptr = arg2
-                        flags = arg3
+                        args = arg3
                         if dirfd != AT_FDCWD:
                             assert False, "openat: unsupported dirfd"
-                        if flags != O_RDONLY:
-                            assert False, "openat: unsupported flags"
+                        if args != O_RDONLY:
+                            assert False, "openat: unsupported args"
                         pathname = get_cstr_from_mem(mem, pathname_ptr).decode('utf-8')
                         fd = len(fds)
                         try:
@@ -621,11 +650,11 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
 
                     if syscall_number == 230: # clock_nanosleep
                         clock_id = arg1
-                        flags = arg2
+                        args = arg2
                         request_ptr = arg3
                         remain_ptr = arg4
                         assert clock_id == CLOCK_MONOTONIC, "Only CLOCK_MONOTONIC is implemented for SYS_clock_nanosleep"
-                        assert flags == 0, "Only relative time is supported for SYS_clock_nanosleep"
+                        assert args == 0, "Only relative time is supported for SYS_clock_nanosleep"
                         assert request_ptr != 0, "request cannot be NULL for SYS_clock_nanosleep. We should probably return -1 in that case..."
                         assert remain_ptr == 0, "remain is not supported for SYS_clock_nanosleep"
                         seconds = int.from_bytes(mem[request_ptr:request_ptr+8], byteorder='little')
@@ -649,10 +678,8 @@ def simulate_little_endian_linux(program: Program, debug: int, argv: List[str]):
             exit(1)
 
     if debug > 1:
-        print("[INFO] Memory dump")
-        print(mem[:debug])
-        print("[INFO] Stack dump")
-        print(stack)
+        iprint(f"Memory dump: \n{mem[:debug]}")
+        iprint(f"Stack dump: \n{stack}")
 
 class DataType(IntEnum):
     INT = auto()
@@ -1643,6 +1670,7 @@ def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
 
 
 def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int, cwd) -> Program:
+    # print(cwd)
     stack: List[OpAddr] = []
     program: Program = Program(ops=[], memory_capacity=0)
     rtokens: List[Token] = list(reversed(tokens))
@@ -2009,12 +2037,12 @@ def lex_file(file_path: str, expanded_from: Optional[Token] = None) -> List[Toke
                 token.expanded_count = expanded_from.expanded_count + 1
         return result
 
-def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int, src_dir) -> Program:
-    return parse_program_from_tokens(lex_file(file_path), include_paths, expansion_limit, src_dir)
+def compile_file_to_program(file_path: str, include_paths: List[str], expansion_limit: int) -> Program:
+    return parse_program_from_tokens(lex_file(file_path), include_paths, expansion_limit, pathlib.PurePath(file_path).parent)
         
 
 def generate_control_flow_graph_as_dot_file(program: Program, dot_path: str):
-    print(f"[INFO] Generating {dot_path}")
+    iprint(f"Generating {dot_path}")
     with open(dot_path, "w") as f:
         f.write("digraph Program {\n")
         for ip in range(len(program)):
@@ -2073,6 +2101,7 @@ def usage(exec):
     print("    --unsafe                            => Skip type checking the source code")
     print("    -r,  --run                          => Run the program after compiling. Only relavent in compile mode.")
     print("    -rm, --remove                       => Remove the build files. Only relavent in compile mode.")
+    print("    -I , --include [PATH]               => Add folders to search for include files.")
     print("    -o   [FILENAME]                     => Output file.")
     print("    -cf, --control-flow                 => Dumps the control flow to a dot file and compiles it to an svg file.")
     print("    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.")
@@ -2080,7 +2109,7 @@ def usage(exec):
 
 def run_compiled_prog(outfile, silent, time):
     if silent != True:
-        print(colors.VIOLET + ("Running \"%s\":" % " ".join(outfile)) + colors.RESET);
+        print(f"{colors.VIOLET}Running \"{outfile}\":{colors.RESET}");
     exit_code = subprocess.call(outfile);
     if silent != True:
         if exit_code == 0:
@@ -2100,31 +2129,33 @@ def run_compiled_prog(outfile, silent, time):
     return exit_code
 
 
+class Mode(IntEnum):
+    NONE=auto();
+    COMPILE=auto();
+    SIMULATE=auto();
+class config:
+    def __init__(self) -> None:
+        self.mode = Mode.NONE
+        self.infile = ""
+        self.outfile = os.path.abspath("output")
+        self.run = False
+        self.remove = False
+        self.silent = False
+        self.unsafe = False
+        self.control_flow = False
+        self.dumpmem = 0
 
-def setup_build_env(sourcefile, build_dir = "./build", out_dir = "./out"):
-    base_dir = os.path.realpath(os.path.dirname(sourcefile))
-    (outfile, ext) = os.path.splitext(sourcefile)
-    outfile = PurePath(outfile).parts[-1]
-    build_dir = PurePath(build_dir)
-    out_dir = PurePath(out_dir)
+    def __str__(self):
+        return f"input_filepath = {self.infile}\noutfile = {self.outfile}\nrun = {self.run}\nremove = {self.remove}\nsilent = {self.silent}\nunsafe = {self.unsafe}\ncontrol_flow = {self.control_flow}\ndumpmem = {self.dumpmem}"
 
-    os.makedirs(Path(base_dir, build_dir), exist_ok = True)
-    os.makedirs(Path(base_dir, build_dir, out_dir), exist_ok = True)
+config = config()
 
-    return {
-    "exec_path": str(Path(base_dir, build_dir, outfile)),
-    "obj_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".o",
-    "asm_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".asm",
-    "dot_path":  str(Path(base_dir, build_dir, out_dir , outfile)) + ".dot",
-    "src_path":  str(sourcefile),
-    "build_dir": str(os.path.join(base_dir, build_dir))
-    }
+def main(argc: int, argv: List[str]):
 
-if __name__ == "__main__":
     start_time = time.time()
-    argv = sys.argv
-    prog, *argv = argv
-    if len(argv) < 1:
+    prog = argv.pop(0);
+
+    if len(argv) < 2:
         usage(prog);
         print("{red}[ERR]: Not enough arguments. Exiting!{reset}".format(
                                                             red = colors.RED,
@@ -2132,141 +2163,127 @@ if __name__ == "__main__":
                                                                 ), file=sys.stderr)
         sys.exit(1);
 
-    argv2 = sys.argv[3:]
-    subc, *argv = argv
-    input_filepath = ""
-    global outfile
-    outfile = "output"
-    b_run = False
-    b_outfile = False
-    b_remove = False
-    b_silent = False
-    b_no_type_check = False
-    b_control_flow = False
-    i_dumpmem = 0
-    for flag in argv:
-        if b_outfile == True:
-            b_outfile == False
-            outfile = flag
-            continue
-        if i_dumpmem == -1:
-            i_dumpmem = int(flag)
-            continue
+    i = 0
+    while len(argv) > i:
+        arg = argv[i]
+        if arg.startswith("-"):
 
-        if flag.startswith("-"):
-            if flag == "-h" or flag == "--help":
+            if arg in ["-h","--help"]:
                 usage(prog);
                 sys.exit(0);
-
-            elif flag == "-r" or flag == "--run":
-                argv2.pop(0)
-                b_run = True
-            elif flag == "--unsafe":
-                argv2.pop(0)
-                b_no_type_check = True
-            elif flag == "-o":
-                argv2.pop(0)
-                b_outfile = True
-            elif flag == "-s":
-                argv2.pop(0)
-                b_silent = True
-            elif flag == "-rm" or flag == "--remove":
-                argv2.pop(0)
-                b_remove = True
-            elif flag == "-cf" or flag == "--control-flow":
-                argv2.pop(0)
-                b_control_flow = True
-            elif flag == "-dm" or flag == "--dump-memory":
-                argv2.pop(0)
-                i_dumpmem = -1
+            elif arg in ["-r","--run"]:
+                config.run = True
+            elif arg in ["--unsafe"]:
+                config.unsafe = True
+            elif arg in ["-o"]:
+                config.outfile = os.path.abspath(argv[i + 1])
+                i += 1
+            elif arg in ["-s"]:
+                config.silent = True
+            elif arg in ["-rm","--remove"]:
+                config.cleanup = True
+            elif arg in ["-cf","--control-flow"]:
+                config.control_flow = True
+            elif arg in ["-I","--include"]:
+                # TODO: Check if path is valid
+                INCLUDE_SEARCH_DIRS.append(os.path.abspath(argv[i + 1]))
+                i += 1
+            elif arg in ["-dm","--dump-memory"]:
+                config.dumpmem = int(argv[i + 1])
+                i += 1
             else:
-                print("{red}[ERR]: Unknown flag {green}{underline}\"{flag}\"{reset}{red}. Exiting!{reset}".format(
+                print("{red}[ERR]: Unknown flag {green}{underline}\"{arg}\"{reset}{red}. Exiting!{reset}".format(
                                                                 red = colors.RED,
                                                                 green = colors.GREEN,
                                                                 reset = colors.RESET,
                                                                 underline = colors.UNDERLINE,
-                                                                flag=flag
+                                                                arg=arg
                                                                     ), file=sys.stderr);
                 sys.exit(1);
         else:
-            if input_filepath == "":
-                input_filepath = flag
-            break
-    # print(input_filepath)
-    if input_filepath == "":
-        usage(prog)
-        print("{red}[ERR]: No file supplied. Exiting!{reset}".format(
-                                                    red = colors.RED,
-                                                    reset = colors.RESET,
-                                                        ), file=sys.stderr);
-        sys.exit(1)
-
-    env = setup_build_env(input_filepath)
-    # print(subc)
-    if subc == "s" or subc == "sim" or subc == "simulate":
-        # Tokenising
-        token_comp_start_time = time.time()
-        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
-        token_comp_time = time.time() - token_comp_start_time
-        if b_silent != True:
-            print("[INFO]: Tokenisation took {} Seconds".format(round(token_comp_time,4)))
-
-        # TC
-        if b_no_type_check != True:
-            tc_start_time = time.time()
-            type_check_program(program)
-            tc_time = time.time() - tc_start_time
-            if b_silent != True:
-                print("[INFO]: Typechecking took {} Seconds".format(round(tc_time,4)))
-
-        # Sim
-        sim_start = time.time()
-        simulate_little_endian_linux(program, i_dumpmem, [env["exec_path"]] + argv2)
-        sim_time = time.time() - sim_start
-        if b_silent != True:
-            print("[INFO]: Simulation took {} Seconds".format(round(sim_time,4)))
-            print("[INFO]: Everything took {} Seconds".format(round((time.time() - start_time), 4)))
-    elif subc == "c" or subc == "com" or subc == "compile":
-        # Tokenising
-        token_comp_start_time = time.time()
-        program = compile_file_to_program(input_filepath, builtin_lib_path, MAX_MACRO_EXPANSION, env["src_path"]);
-        token_comp_time = time.time() - token_comp_start_time
-        if b_silent != True:
-            print("[INFO]: Tokenisation took {} Seconds".format(round(token_comp_time,4)))
-
-        # TC
-        if b_no_type_check != True:
-            tc_start_time = time.time()
-            type_check_program(program)
-            tc_time = time.time() - tc_start_time
-            if b_silent != True:
-                print("[INFO]: Typechecking took {} Seconds".format(round(tc_time,4)))
-        # Generating
-        asm_start_time = time.time()
-        generate_nasm_linux_x86_64(program, env["asm_path"])
-        asm_time = time.time() - asm_start_time
-        if b_silent != True:
-            print("[INFO]: ASM Generation took {} Seconds".format(round(asm_time,4)))
-
-        run_cmd(["nasm", "-felf64", "-o", env["obj_path"], env["asm_path"]], b_silent)
-        run_cmd(["ld", "-o", env["exec_path"], env["obj_path"]], b_silent)
-        if b_control_flow:
-            generate_control_flow_graph_as_dot_file(program, env["dot_path"])
-        if b_remove == True:
-            run_cmd(["rm", "-f", env["asm_path"], env["obj_path"]], b_silent)
-        if b_run == True:
-            exit_code = run_compiled_prog([env["exec_path"]] + argv2, b_silent, (time.time() - start_time))
-            exit(exit_code)
-        if b_silent != True:
-            print("[INFO]: Everything took {} Seconds".format(round((time.time() - start_time), 4)))
-    else:
-        usage(prog);
-
-        print("{red}[ERR]: Unknown subcommand {green}{underline}\"{subcommand}\"{reset}{red}. Exiting!{reset}".format(
+            if (arg not in ["c", "com", "compile", "s", "sim", "simulate"]) and (i == len(argv)-1):
+                config.infile = os.path.abspath(arg)
+            elif arg in ["c", "com", "compile"]:
+                config.mode = Mode.COMPILE
+            elif arg in ["s", "sim", "simulate"]:
+                config.mode = Mode.SIMULATE
+            else: 
+                print("{red}[ERR]: Unknown arg {green}{underline}\"{arg}\"{reset}{red}. Exiting!{reset}".format(
                                                                 red = colors.RED,
                                                                 green = colors.GREEN,
                                                                 reset = colors.RESET,
                                                                 underline = colors.UNDERLINE,
-                                                                subcommand = subc
+                                                                arg=arg
                                                                     ), file=sys.stderr);
-        sys.exit(1);
+
+        i += 1
+    
+    # print(config)
+
+    if config.mode == Mode.NONE:
+        pass
+    elif config.mode == Mode.COMPILE:
+        # Tokenising
+        token_comp_start_time = time.time()
+        program = compile_file_to_program(config.infile, INCLUDE_SEARCH_DIRS, MAX_MACRO_EXPANSION);
+        token_comp_time = time.time() - token_comp_start_time
+        if config.silent != True:
+            iprint("Tokenisation took {} Seconds".format(round(token_comp_time,4)))
+
+        # TC
+        if config.unsafe != True:
+            tc_start_time = time.time()
+            type_check_program(program)
+            tc_time = time.time() - tc_start_time
+            if config.silent != True:
+                iprint("Typechecking took {} Seconds".format(round(tc_time,4)))
+        # Generating
+        asm_start_time = time.time()
+        generate_nasm_linux_x86_64(program, f"{config.outfile}.asm")
+        asm_time = time.time() - asm_start_time
+        if config.silent != True:
+            iprint("ASM Generation took {} Seconds".format(round(asm_time,4)))
+
+        run_cmd(["nasm", "-felf64", "-o", f"{config.outfile}.o", f"{config.outfile}.asm"], config.silent)
+        run_cmd(["ld", "-o", f"{config.outfile}", f"{config.outfile}.o"], config.silent)
+        if config.control_flow:
+            generate_control_flow_graph_as_dot_file(program, env["dot_path"])
+        if config.remove == True:
+            run_cmd(["rm", "-f", f"{config.outfile}", f"{config.outfile}.o",f"{config.outfile}.asm"], config.silent)
+        if config.run == True:
+            exit_code = run_compiled_prog(config.outfile, config.silent, (time.time() - start_time))
+            exit(exit_code)
+        if config.silent != True:
+            iprint("Everything took {} Seconds".format(round((time.time() - start_time), 4)))
+    elif config.mode == Mode.SIMULATE:
+        # Tokenising
+        tkn_start_time = time.time()
+        program = compile_file_to_program(config.infile, INCLUDE_SEARCH_DIRS, MAX_MACRO_EXPANSION);
+        tkn_time = time.time() - tkn_start_time
+        if config.silent != True:
+            iprint("Tokenisation took {} Seconds".format(round(tkn_time,4)))
+
+        # TC
+        if config.unsafe != True:
+            tc_start_time = time.time()
+            type_check_program(program)
+            tc_time = time.time() - tc_start_time
+            if config.silent != True:
+                iprint("Typechecking took {} Seconds".format(round(tc_time,4)))
+
+        # Sim
+        sim_start = time.time()
+        # TODO: add back argv passthrough
+        simulate_little_endian_linux(program, config.dumpmem, [])
+        sim_time = time.time() - sim_start
+        if config.silent != True:
+            iprint("Simulation took {} Seconds".format(round(sim_time,4)))
+            iprint("Everything took {} Seconds".format(round((time.time() - start_time), 4)))
+    
+
+
+
+
+if __name__ == "__main__":
+    main(len(sys.argv), sys.argv);
+    exit(0)
