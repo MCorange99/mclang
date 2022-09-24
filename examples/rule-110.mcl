@@ -21,9 +21,9 @@ mem BOARD_SIZE 2 - + 1 store
    mem 1 + load or
 
    1 while dup BOARD_SIZE 2 -  < do
-      swap 1 << 7 &
-      over mem + 1 + load |
-      2dup 110 swap >> 1 &
+      swap 1 << 7 and
+      over mem + 1 + load or
+      2dup 110 swap >> 1 and
       swap mem + swap store
       swap
 

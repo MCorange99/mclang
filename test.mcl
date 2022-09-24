@@ -1,7 +1,14 @@
+include "std.mcl"
 
-34 35 + print
-500 80 - print
-69000 1000 divmod drop print
-5 100 divmod swap drop print
-104 100 divmod swap drop print
-42 10 * print
+memory split   sizeof(Str) end
+memory line    sizeof(Str) end
+
+
+"Hello,every,body,1,2,3" line !Str
+
+',' split line str-chop-by-delim
+
+while split @Str.count 0 > do
+    split @Str puts
+    "\n" puts
+end

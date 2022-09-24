@@ -1,6 +1,5 @@
 
 include "linux.mcl" // Missing 1 char D:
-include "string.mcl"
 include "colors.mcl"
 
 // sizes
@@ -14,15 +13,20 @@ macro true  1 cast(bool) end
 macro false 0 cast(bool) end
 
 
-// Wrappers for common syscalls
+
+
 macro write SYS_write syscall3 end
 macro read SYS_read syscall3 end
-macro openat SYS_openat syscall3 end
-macro close SYS_close syscall1 end
+macro openat SYS_openat syscall4 end
 macro fstat SYS_fstat syscall2 end
+macro close SYS_close syscall1 end
 macro exit SYS_exit syscall1 drop end
-macro clock_nanosleep SYS_clock_nanosleep syscall4 end
 macro mmap SYS_mmap syscall6 end
+macro clock_nanosleep SYS_clock_nanosleep syscall4 end
+macro fork SYS_fork syscall0 end
+macro getpid SYS_getpid syscall0 end
+macro execve SYS_execve syscall3 end
+macro wait4 SYS_wait4 syscall4 end
 
 macro sizeof(stat) 144 end
 macro stat.st_dev 0 + end
@@ -57,6 +61,10 @@ macro sizeof(stat.st_ctim) 16 end
 
 macro AT_FDCWD -100 end
 macro O_RDONLY 0 end
+macro O_WRONLY 1 end
+macro O_RDWR   2 end
+macro O_CREAT 64 end
+
 
 // 
 macro MAP_PRIVATE 2 end
@@ -70,6 +78,31 @@ macro STD_ERR 2 end
 macro fputs
   write drop
 end
+
+macro PUTD_BUFFER_CAP 32 end
+memory putd-buffer PUTD_BUFFER_CAP end
+memory putd-fd sizeof(u64) end
+// TODO: fputd should fail if write call fails
+macro fputd // value fd --
+  putd-fd !64
+
+  if dup 0 = do
+    "0" putd-fd @64 fputs
+  else
+    putd-buffer PUTD_BUFFER_CAP +
+    while over 0 > do
+      1 - dup rot
+      10 divmod
+      rot swap '0' + swap !8 swap
+    end
+
+    dup
+    putd-buffer PUTD_BUFFER_CAP + swap - swap putd-fd @64 fputs
+  end
+  drop
+end
+
+macro putd STD_OUT fputd end
 
 macro puts
   STD_OUT fputs
@@ -149,40 +182,123 @@ macro lnot
   cast(int) 1 - cast(bool)
 end
 
-//
-// putd() -> print an intager(digit) to stdout
-// ARGS: [InputNum: INT]
-// 
-macro PUTD_BUFFER_CAP 32 end
-memory putd-buffer PUTD_BUFFER_CAP end
-
-macro putd
-    if dup 0 = do
-        "0" puts
-    else
-        putd-buffer PUTD_BUFFER_CAP +
-        while over 0 > do
-        1 - dup rot
-        10 divmod
-        rot swap '0' + swap !8 swap
-        end
-
-        dup
-        putd-buffer PUTD_BUFFER_CAP + swap - swap puts
-    end
-    drop
-end
-
 // QoL words
 macro << shl end
 macro >> shr end
+
+
+// #######################
+// String stuff
+// #######################
+
+macro sizeof(Str) 16 end
+macro Str.count   0 + end
+macro Str.data    8 + end
+macro @Str.count  Str.count @64 end
+macro @Str.data   Str.data  @64 cast(ptr) end
+macro !Str.count  Str.count !64 end
+macro !Str.data   Str.data  !64 end
+
+macro @Str
+  dup @Str.count
+  swap @Str.data
+end
+
+macro !Str // count data dst -
+  dup rot swap
+  !Str.data
+  !Str.count
+end
+
+macro str-chop-one-left
+   dup Str.count dec64
+       Str.data inc64
+end
+
+macro str-trim-left // input --
+  while 
+    if dup @Str.count 0 > do
+       dup @Str.data @8 ' ' =
+    else false end
+  do
+    dup str-chop-one-left
+  end
+  drop
+end
+
+memory str-chop-by-delim-tmp sizeof(u64) end
+macro str-chop-by-delim
+    rot str-chop-by-delim-tmp !64
+    2dup @Str.data swap !Str.data
+    over 0 swap !Str.count
+    while
+      if dup @Str.count 0 > do
+        dup @Str.data @8 str-chop-by-delim-tmp @64 !=
+      else false end
+    do
+      dup str-chop-one-left
+      swap dup Str.count inc64 swap
+    end
+    if dup @Str.count 0 > do
+      dup str-chop-one-left
+    end 
+    2drop
+end
+
+macro cstrlen
+  dup
+  while dup @8 0 != do 1 + end
+  swap -
+end
+
+macro cstreq
+  while
+    if over @8 0 != over @8 0 != and do
+       over @8 over @8 =
+    else
+       false
+    end
+  do
+    1 + swap 1 +
+  end
+  @8 0 =
+  swap @8 0 =
+  and
+end
+
+macro cstr-to-str
+  dup cstrlen swap
+end
+
+memory streq_a sizeof(Str) end
+memory streq_b sizeof(Str) end
+macro streq
+  streq_a !Str
+  streq_b !Str
+  if streq_a @Str.count streq_b @Str.count = do
+    0 while
+      if dup streq_a @Str.count < do
+        dup streq_a @Str.data + @8
+        over streq_b @Str.data + @8
+        =
+      else false end
+    do 1 + end
+    streq_a @Str.count >=
+  else false end
+end
+
+macro isdigit
+  dup  '0' >=
+  swap '9' <=
+  and
+end
 
 // Deprecated Words
 macro .64 swap !64 end
 macro ,64 @64 end
 macro ! !8 end
 macro @ @8 end
-macro store swap ! end
-macro load @ end
+macro . swap ! end
+macro , @ end
 macro cstr-to-pstr cstr-to-str end
 memory mem 640000 end

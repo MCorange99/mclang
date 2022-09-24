@@ -1,55 +1,18 @@
+// In progress rewrite of ./mclang.py in mclang
+
 include "std.mcl"
 
-// config
 macro MEM_CAPACITY 640000 end
 macro SIM_STACK_CAP 1024 end
 
 macro OP_PUSH_INT 0 end
-
-//arithmatics
-macro OP_PLUS       1 end
-macro OP_MINUS      2 end
-macro OP_MUL        3 end
-macro OP_DIVMOD     4 end
-macro OP_EQ         5 end
-macro OP_GT         6 end
-macro OP_LT         7 end
-macro OP_GE         8 end
-macro OP_LE         9 end
-macro OP_NE         10 end
-macro OP_SHR        11 end
-macro OP_SHL        12 end
-macro OP_OR         13 end
-macro OP_AND        14 end
-macro OP_NOT        15 end
-
-// Stack modifiers
-macro OP_PRINT      16 end
-macro OP_DUP        17 end
-macro OP_SWAP       18 end
-macro OP_DROP       19 end
-macro OP_OVER       20 end
-macro OP_ROT        21 end
-
-// Syscalls
-macro OP_SYSCALL0   22 end
-macro OP_SYSCALL1   23 end
-macro OP_SYSCALL2   24 end
-macro OP_SYSCALL3   25 end
-macro OP_SYSCALL4   26 end
-macro OP_SYSCALL5   27 end
-macro OP_SYSCALL6   28 end
-
-// type casts
-macro OP_CAST_PTR   29 end
-macro OP_CAST_INT   30 end
-macro OP_CAST_BOOL  31 end
-
-// specialised
-macro OP_ARGC       32 end
-macro OP_ARGV       33 end
-
-macro COUNT_OPS     34 end
+macro OP_PLUS     1 end
+macro OP_MINUS    2 end
+macro OP_MUL      3 end
+macro OP_PRINT    4 end
+macro OP_DUP      5 end
+macro OP_DROP     6 end
+macro COUNT_OPS   7 end
 
 macro OPS_CAP       1024 end
 macro sizeof(Op)    16 end
@@ -60,9 +23,6 @@ macro !Op.type      Op.type !64 end
 macro @Op.operand   Op.operand @64 end
 macro !Op.operand   Op.operand !64 end
 
-
-// memory layout
-
 memory file_path_cstr  sizeof(ptr)                 end
 memory fd              sizeof(u64)                 end
 memory statbuf         sizeof(stat)                end
@@ -71,709 +31,453 @@ memory line            sizeof(Str)                 end
 memory word            sizeof(Str)                 end
 memory line_number     sizeof(u64)                 end
 memory line_start      sizeof(ptr)                 end
-memory sim_stack_count sizeof(u64)                 end
-memory sim_stack       sizeof(u64) SIM_STACK_CAP * end
-memory ops_count       sizeof(u64)                 end
-memory ops             sizeof(Op)  OPS_CAP *       end
+memory sim-stack-count sizeof(u64)                 end
+memory sim-stack       sizeof(u64) SIM_STACK_CAP * end
+memory ops-count       sizeof(u64)                 end
+memory ops             sizeof(Op) OPS_CAP *        end
 
+memory out_fd sizeof(u64) end
+macro @out_fd out_fd @64 end
+macro !out_fd out_fd !64 end
 
-macro sim_stack_push
-    if sim_stack_count @64 SIM_STACK_CAP >= do
-        here ": ERROR: data stack overflow in simulation mode" eputs eputs 
-        1 exit
+memory empty_envp sizeof(ptr) end
+memory nasm_argv sizeof(ptr) 4 * end
+// TODO: search for external utilities in $PATH
+"/usr/bin/nasm"c nasm_argv 0 8 * + !64
+"-felf64"c       nasm_argv 1 8 * + !64
+"output.asm"c    nasm_argv 2 8 * + !64
+
+memory ld_argv sizeof(ptr) 5 * end
+"/usr/bin/ld"c ld_argv 0 8 * + !64
+"-o"c          ld_argv 1 8 * + !64
+"output"c      ld_argv 2 8 * + !64
+"output.o"c    ld_argv 3 8 * + !64
+// TODO: properly name the executable
+memory output_argv sizeof(ptr) 2 * end
+"./output"c output_argv 0 8 * + !64
+
+// TODO: make the build folder structure and put the executable there
+
+memory wstatus sizeof(u64) end
+macro cmd_echoed // argv
+  "[CMD]" puts
+  dup while dup @64 0 != do
+    " " puts
+    // TODO: properly escape the logged CMD
+    dup @64 cast(ptr) cstr-to-str puts
+    8 +
+  end drop
+  "\n" puts
+
+  fork
+  
+  if dup 0 = do
+    drop
+    dup @64 cast(ptr) empty_envp
+    rot rot
+    execve
+    if dup 0 < do
+      "[ERROR] could not exec external program\n" eputs
+      1 exit
     end
-    
-    sim_stack sim_stack_count @64 8 * + !64
-    sim_stack_count inc64
-    
+  elif dup 0 > do
+    drop
+    // TODO: handle the result of wait4
+    NULL 0 wstatus -1 wait4 drop
+  else
+    drop
+    "[ERROR] could not fork a child\n" eputs
+    1 exit
+  end
+  
+  drop
 end
 
-macro sim_stack_pop
-    if sim_stack_count @64 0 = do
-        here eputs ": ERROR: data stack underflow in simulation mode" eputs
-        1 exit
+macro sim-stack-push // u64 --
+  if sim-stack-count @64 SIM_STACK_CAP >= do
+    here eputs ": ERROR: data stack overflow in simulation mode\n" eputs 1 exit
+  end
+  sim-stack sim-stack-count @64 8 * + !64
+  sim-stack-count inc64
+end
+
+macro sim-stack-pop // -- u64
+  if sim-stack-count @64 0 = do
+    here eputs ": ERROR: data stack underflow in simulation mode\n" eputs 1 exit
+  end
+  sim-stack-count dec64
+  sim-stack sim-stack-count @64 8 * + @64
+end
+
+macro try_to_parse_word_as_int_or_fail_as_unknown_word // n1 s1 - ret
+  0 0 while dup word @Str.count < do
+    dup word @Str.data + @8
+
+    if dup isdigit lnot do
+      file_path_cstr @64 cast(ptr) cstr-to-str eputs
+      ":" puts line_number @64 putd
+      ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
+      ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
+      1 exit
     end
-    sim_stack_count dec64
 
-    sim_stack sim_stack_count @64 8 *  +  @64
-end
-
-macro parse_word_as_int // n1 s1 - ret
-    0 0 while dup word @Str.count < do
-        dup word @Str.data + @8
-
-        if dup isdigit lnot do
-        file_path_cstr @64 cast(ptr) cstr-to-str eputs
-        ":" puts line_number @64 putd
-        ":" puts word @Str.data cast(int) line_start @64 - 1 + putd
-        ": ERROR: `" eputs word @Str eputs "` is unknown word\n" eputs
-        1 exit
-        end
-
-        '0' -
-        rot 10 * +
-        swap
-        1 +
-    end drop
+    '0' -
+    rot 10 * +
+    swap
+    1 +
+  end drop
 end
 
 
-macro push_op // type operand -- 
+macro push-op // type operand -- 
   // TODO: assert OPS_CAP
-  ops_count @64 sizeof(Op) * ops +
+  ops-count @64 sizeof(Op) * ops +
   dup rot swap !Op.operand
   !Op.type
-  ops_count inc64
+  ops-count inc64
 end
 
-macro dump_ops
-    0 while dup ops_count @64 < do
-        dup sizeof(Op) * ops +
-        "Type: "    puts dup     @64 print
-        "Operand: " puts 8 + @64 print
-        "-------------\n" puts
-        1 +
+macro print-op-type
+  if COUNT_OPS 7 != do
+    here eputs ": Assertion Failed: Exhaustive handling of Op types in print-op-type\n" eputs
+    1 exit
+  end
+
+  if dup OP_PUSH_INT = do
+    "OP_PUSH_INT" puts
+  elif dup OP_PLUS = do
+    "OP_PLUS" puts
+  elif dup OP_MINUS = do
+    "OP_MINUS" puts
+  elif dup OP_MUL = do
+    "OP_MUL" puts
+  elif dup OP_DUP = do
+    "OP_DUP" puts
+  elif dup OP_DROP = do
+    "OP_DROP" puts
+  elif dup OP_PRINT = do
+    "OP_PRINT" puts
+  else
+    here eputs ": Unknown op type\n" eputs 1 exit
+  end
+  drop
+end
+
+macro dump-ops // --
+  0 while dup ops-count @64 < do
+    // ptr ptr
+    dup sizeof(Op) * ops +
+    "Type:    " puts dup @Op.type print-op-type "\n" puts
+    "Operand: " puts @Op.operand putd           "\n" puts
+    "----------\n" puts
+    1 +
+  end
+  drop
+end
+
+macro compile-ops // --
+  "[INFO] Generating output.asm\n" puts
+
+  420                  // mode
+  O_CREAT O_WRONLY or  // flags
+  // TODO: the output file path should be based on the input file path
+  "output.asm"c        // pathname
+  AT_FDCWD
+  openat
+  !out_fd
+
+  if @out_fd 0 < do
+    "[ERROR] could not open `output.asm`\n" eputs
+    1 exit
+  end
+
+  "BITS 64\n"                              @out_fd fputs
+  "segment .text\n"                        @out_fd fputs
+  "print:\n"                               @out_fd fputs
+  "    mov     r9, -3689348814741910323\n" @out_fd fputs
+  "    sub     rsp, 40\n"                  @out_fd fputs
+  "    mov     BYTE [rsp+31], 10\n"        @out_fd fputs
+  "    lea     rcx, [rsp+30]\n"            @out_fd fputs
+  ".L2:\n"                                 @out_fd fputs
+  "    mov     rax, rdi\n"                 @out_fd fputs
+  "    lea     r8, [rsp+32]\n"             @out_fd fputs
+  "    mul     r9\n"                       @out_fd fputs
+  "    mov     rax, rdi\n"                 @out_fd fputs
+  "    sub     r8, rcx\n"                  @out_fd fputs
+  "    shr     rdx, 3\n"                   @out_fd fputs
+  "    lea     rsi, [rdx+rdx*4]\n"         @out_fd fputs
+  "    add     rsi, rsi\n"                 @out_fd fputs
+  "    sub     rax, rsi\n"                 @out_fd fputs
+  "    add     eax, 48\n"                  @out_fd fputs
+  "    mov     BYTE [rcx], al\n"           @out_fd fputs
+  "    mov     rax, rdi\n"                 @out_fd fputs
+  "    mov     rdi, rdx\n"                 @out_fd fputs
+  "    mov     rdx, rcx\n"                 @out_fd fputs
+  "    sub     rcx, 1\n"                   @out_fd fputs
+  "    cmp     rax, 9\n"                   @out_fd fputs
+  "    ja      .L2\n"                      @out_fd fputs
+  "    lea     rax, [rsp+32]\n"            @out_fd fputs
+  "    mov     edi, 1\n"                   @out_fd fputs
+  "    sub     rdx, rax\n"                 @out_fd fputs
+  "    xor     eax, eax\n"                 @out_fd fputs
+  "    lea     rsi, [rsp+32+rdx]\n"        @out_fd fputs
+  "    mov     rdx, r8\n"                  @out_fd fputs
+  "    mov     rax, 1\n"                   @out_fd fputs
+  "    syscall\n"                          @out_fd fputs
+  "    add     rsp, 40\n"                  @out_fd fputs
+  "    ret\n"                              @out_fd fputs
+  "global _start\n"                        @out_fd fputs
+  "_start:\n"                              @out_fd fputs
+  "    mov [args_ptr], rsp\n"              @out_fd fputs
+
+  0 while dup ops-count @64 < do
+    dup sizeof(Op) * ops +
+
+    // TODO: compile time assertion
+    if COUNT_OPS 7 != do
+      here eputs ": Assertion Failed: Exhaustive handling of Op types in compile-ops\n" eputs
+      1 exit
     end
-    drop
-end
 
-//struct Op {
-//    type: u64,
-//    operand: u64      
-//}
+    if dup @Op.type OP_PUSH_INT = do
+       "    ;; -- push int "  @out_fd fputs dup @Op.operand @out_fd fputd " --\n" @out_fd fputs
+       "    mov rax, "        @out_fd fputs dup @Op.operand @out_fd fputd "\n"    @out_fd fputs
+       "    push rax\n"       @out_fd fputs
+    elif dup @Op.type OP_PLUS = do
+       "    ;; -- plus --\n"  @out_fd fputs
+       "    pop rax\n"        @out_fd fputs
+       "    pop rbx\n"        @out_fd fputs
+       "    add rax, rbx\n"   @out_fd fputs
+       "    push rax\n"       @out_fd fputs
+    elif dup @Op.type OP_MINUS = do
+       "    ;; -- minus --\n" @out_fd fputs
+       "    pop rax\n"        @out_fd fputs
+       "    pop rbx\n"        @out_fd fputs
+       "    sub rbx, rax\n"   @out_fd fputs
+       "    push rbx\n"       @out_fd fputs
+    elif dup @Op.type OP_MUL = do
+       "    ;; -- mul --\n"   @out_fd fputs
+       "    pop rax\n"        @out_fd fputs
+       "    pop rbx\n"        @out_fd fputs
+       "    mul rbx\n"        @out_fd fputs
+       "    push rax\n"       @out_fd fputs
+    elif dup @Op.type OP_PRINT = do
+       "    ;; -- print --\n" @out_fd fputs
+       "    pop rdi\n"        @out_fd fputs
+       "    call print\n"     @out_fd fputs
+    elif dup @Op.type OP_DUP = do
+       "    ;; -- dup --\n"   @out_fd fputs
+       "    pop rax\n"        @out_fd fputs
+       "    push rax\n"       @out_fd fputs
+       "    push rax\n"       @out_fd fputs
+    elif dup @Op.type OP_DROP = do
+       "    ;; -- drop --\n"  @out_fd fputs
+       "    pop rax\n"        @out_fd fputs
+    else
+       here eputs ": unreachable\n" eputs 1 exit
+    end
 
-macro simulate_ops
-    "Exaustive implementation of ops in simulate ops." here COUNT_OPS 34 = assert
-    0 while dup ops_count @64 dup print cast(int) cast(int) < do // stuck here
-        dup sizeof(Op) * ops +
-        
-        dup if @Op.type OP_PUSH_INT = do
-            dup 8 + @64 sim_stack_push
-        elif dup @Op.type OP_PLUS = do
-            sim_stack_pop
-            sim_stack_pop
-            +
-            sim_stack_push
-        elif dup @Op.type OP_MINUS = do
-            sim_stack_pop
-            sim_stack_pop
-            +
-            sim_stack_push
-        elif dup @Op.type OP_MUL = do
-            sim_stack_pop
-            sim_stack_pop
-            *
-            sim_stack_push
-        elif dup @Op.type OP_DIVMOD = do
-            sim_stack_pop
-            sim_stack_pop
-            divmod
-            sim_stack_push
-            sim_stack_push
-        elif dup @Op.type OP_EQ = do
-            sim_stack_pop
-            sim_stack_pop
-            =
-            sim_stack_push
-        elif dup @Op.type OP_GT = do
-            sim_stack_pop
-            sim_stack_pop
-            >
-            sim_stack_push
-        elif dup @Op.type OP_LT = do
-            sim_stack_pop
-            sim_stack_pop
-            <
-            sim_stack_push
-        elif dup @Op.type OP_GE = do
-            sim_stack_pop
-            sim_stack_pop
-            >=
-            sim_stack_push
-        elif dup @Op.type OP_LE = do
-            sim_stack_pop
-            sim_stack_pop
-            <=
-            sim_stack_push
-        elif dup @Op.type OP_NE = do
-            sim_stack_pop
-            sim_stack_pop
-            !=
-            sim_stack_push
-        elif dup @Op.type OP_SHR = do
-            sim_stack_pop
-            sim_stack_pop
-            shr
-            sim_stack_push
-        elif dup @Op.type OP_SHL = do
-            sim_stack_pop
-            sim_stack_pop
-            shl
-            sim_stack_push
-        elif dup @Op.type OP_OR = do
-            sim_stack_pop
-            sim_stack_pop
-            or
-            sim_stack_push
-        elif dup @Op.type OP_AND = do
-            sim_stack_pop
-            sim_stack_pop
-            and
-            sim_stack_push
-        elif dup @Op.type OP_NOT = do
-            sim_stack_pop
-            not
-            sim_stack_push
-        elif dup @Op.type OP_PRINT = do
-            sim_stack_pop print
-        elif dup @Op.type OP_DUP = do
-            sim_stack_pop
-            dup
-            sim_stack_push
-            sim_stack_push
-        elif dup @Op.type OP_SWAP = do
-            sim_stack_pop
-            sim_stack_pop
-            swap
-            sim_stack_push
-            sim_stack_push
-        elif dup @Op.type OP_DROP = do
-            sim_stack_pop
-            drop
-        elif dup @Op.type OP_OVER = do
-            sim_stack_pop
-            sim_stack_pop
-            over
-            sim_stack_push
-            sim_stack_push
-            sim_stack_push
-        elif dup @Op.type OP_ROT = do
-            sim_stack_pop
-            sim_stack_pop
-            rot
-            sim_stack_push
-            sim_stack_push
-            sim_stack_push
-        else
-            "Unreachable op: " puts
-            dup @64 print
-            "Unreachable: " here false assert
-        end
-        drop 
-        1 +
-    end // while
-    drop
-end
-
-macro compile_ops
-    "BITS 64\n" puts
-    "print:\n" puts
-    "    mov     r9, -3689348814741910323\n" puts
-    "    sub     rsp, 40\n" puts
-    "    mov     BYTE [rsp+31], 10\n" puts
-    "    lea     rcx, [rsp+30]\n" puts
-    ".L2:\n" puts
-    "    mov     rax, rdi\n" puts
-    "    lea     r8, [rsp+32]\n" puts
-    "    mul     r9\n" puts
-    "    mov     rax, rdi\n" puts
-    "    sub     r8, rcx\n" puts
-    "    shr     rdx, 3\n" puts
-    "    lea     rsi, [rdx+rdx*4]\n" puts
-    "    add     rsi, rsi\n" puts
-    "    sub     rax, rsi\n" puts
-    "    add     eax, 48\n" puts
-    "    mov     BYTE [rcx], al\n" puts
-    "    mov     rax, rdi\n" puts
-    "    mov     rdi, rdx\n" puts
-    "    mov     rdx, rcx\n" puts
-    "    sub     rcx, 1\n" puts
-    "    cmp     rax, 9\n" puts
-    "    ja      .L2\n" puts
-    "    lea     rax, [rsp+32]\n" puts
-    "    mov     edi, 1\n" puts
-    "    sub     rdx, rax\n" puts
-    "    xor     eax, eax\n" puts
-    "    lea     rsi, [rsp+32+rdx]\n" puts
-    "    mov     rdx, r8\n" puts
-    "    mov     rax, 1\n" puts
-    "    syscall\n" puts
-    "    add     rsp, 40\n" puts
-    "    ret\n" puts
-    "global _start\n" puts
-    "_start:\n" puts
-    "    mov [args_ptr], rsp\n" puts
-    "Exaustive implementation of ops in compile ops." here COUNT_OPS 7 = assert
-    0 while dup ops_count @64 < do
-        dup sizeof(Op) * ops +
-        
-        if dup @Op.type OP_PUSH_INT = do
-            "    ;; -- push int " puts dup 8 + @64 putd " --\n" puts
-            "    mov rax, " puts dup 8 + @64 putd "\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_PLUS = do
-            "    ;; -- plus --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    add rax, rbx\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_MINUS = do
-            "    ;; -- minus --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    sub rbx, rax\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_MUL = do
-            "    ;; -- mul --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    mul rbx\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_DIVMOD = do
-            "    ;; -- mod --\n" puts
-            "    xor rdx, rdx\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    div rbx\n" puts
-            "    push rax\n" puts
-            "    push rdx\n" puts
-        elif dup @Op.type OP_SHR = do
-            "    ;; -- shr --\n" puts
-            "    pop rcx\n" puts
-            "    pop rbx\n" puts
-            "    shr rbx, cl\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_SHL = do
-            "    ;; -- shl --\n" puts
-            "    pop rcx\n" puts
-            "    pop rbx\n" puts
-            "    shl rbx, cl\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_OR = do
-            "    ;; -- or --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    or rbx, rax\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_ROT = do
-            "    ;; -- rot --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    pop rcx\n" puts
-            "    push rbx\n" puts
-            "    push rax\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_AND = do
-            "    ;; -- and --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    and rbx, rax\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_PRINT = do
-            "    ;; -- print --\n" puts
-            "    pop rdi\n" puts
-            "    call print\n" puts
-        elif dup @Op.type OP_EQ = do
-            "    ;; -- equal -- \n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmove rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_NOT = do
-            "    ;; -- not --\n" puts
-            "    pop rax\n" puts
-            "    not rax\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_GT = do
-            "    ;; -- gt --\n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmovg rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_LT = do
-            "    ;; -- lt --\n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmovl rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_GE = do
-            "    ;; -- ge --\n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmovge rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_LE = do
-            "    ;; -- le --\n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmovle rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_NE = do
-            "    ;; -- ne --\n" puts
-            "    mov rcx, 0\n" puts
-            "    mov rdx, 1\n" puts
-            "    pop rbx\n" puts
-            "    pop rax\n" puts
-            "    cmp rax, rbx\n" puts
-            "    cmovne rcx, rdx\n" puts
-            "    push rcx\n" puts
-        elif dup @Op.type OP_DUP = do
-            "    ;; -- dup -- \n" puts
-            "    pop rax\n" puts
-            "    push rax\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SWAP = do
-            "    ;; -- swap --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    push rax\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_DROP = do
-            "    ;; -- drop --\n" puts
-            "    pop rax\n" puts
-        elif dup @Op.type OP_OVER = do
-            "    ;; -- over --\n" puts
-            "    pop rax\n" puts
-            "    pop rbx\n" puts
-            "    push rbx\n" puts
-            "    push rax\n" puts
-            "    push rbx\n" puts
-        elif dup @Op.type OP_CAST_PTR = do
-            "    ;; -- cast(ptr) --\n" puts
-        elif dup @Op.type OP_CAST_INT = do
-            "    ;; -- cast(int) --\n" puts
-        elif dup @Op.type OP_CAST_BOOL = do
-            "    ;; -- cast(bool) --\n" puts
-        elif dup @Op.type OP_ARGC = do
-            "    ; -- argc --\n" puts
-            "    mov rax, [args_ptr]\n" puts
-            "    mov rax, [rax]\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_ARGV = do
-            "    ; -- argv --\n" puts
-            "    mov rax, [args_ptr]\n" puts
-            "    add rax, 8\n" puts
-            "    push rax\n" puts
-        // elif dup @Op.type OP_HERE = do
-        //     value = ("%s:%d:%d" % op.token.loc).encode('utf-8')
-        //     n = len(value)
-        //     "    ;; -- here --\n" puts
-        //     "    mov rax, %d\n" puts
-        //     "    push rax\n" puts
-        //     "    push str_%d\n" puts
-        //     strs.append(value)
-        // elif dup @Op.type OP_LOAD8 = do
-        //     "    ;; -- forth load --\n" puts
-        //     "    pop rax\n" puts
-        //     "    xor rbx, rbx\n" puts
-        //     "    mov bl, [rax]\n" puts
-        //     "    push rbx\n" puts
-        // elif dup @Op.type OP_STORE8 = do
-        //     "    ;; -- store --\n" puts
-        //     "    pop rax\n" puts
-        //     "    pop rbx\n" puts
-        //     "    mov [rax], bl\n" puts
-        // elif dup @Op.type OP_LOAD64 = do
-        //     "    ;; -- forth load64 --\n" puts
-        //     "    pop rax\n" puts
-        //     "    xor rbx, rbx\n" puts
-        //     "    mov rbx, [rax]\n" puts
-        //     "    push rbx\n" puts
-        // elif dup @Op.type OP_STORE64 = do
-        //     "    ;; -- forth store64 --\n" puts
-        //     "    pop rax\n" puts
-        //     "    pop rbx\n" puts
-        //     "    mov [rax], rbx\n" puts
-        elif dup @Op.type OP_SYSCALL0 = do
-            "    ;; -- syscall0 --\n" puts
-            "    pop rax\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL1 = do
-            "    ;; -- syscall1 --\n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL2 = do
-            "    ;; -- syscall2 -- \n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    pop rsi\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL3 = do
-            "    ;; -- syscall3 --\n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    pop rsi\n" puts
-            "    pop rdx\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL4 = do
-            "    ;; -- syscall4 --\n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    pop rsi\n" puts
-            "    pop rdx\n" puts
-            "    pop r10\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL5 = do
-            "    ;; -- syscall5 --\n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    pop rsi\n" puts
-            "    pop rdx\n" puts
-            "    pop r10\n" puts
-            "    pop r8\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        elif dup @Op.type OP_SYSCALL6 = do
-            "    ;; -- syscall6 --\n" puts
-            "    pop rax\n" puts
-            "    pop rdi\n" puts
-            "    pop rsi\n" puts
-            "    pop rdx\n" puts
-            "    pop r10\n" puts
-            "    pop r8\n" puts
-            "    pop r9\n" puts
-            "    syscall\n" puts
-            "    push rax\n" puts
-        else
-            "Unreachable" here false assert
-        end
-        drop
-        1 +
-    end // while
     drop
 
-    "addr_%d:\n" puts
-    "    mov rax, 60\n" puts
-    "    mov rdi, 0\n" puts
-    "    syscall\n" puts
-    // strings
-    "segment .data\n" puts
-    "segment .bss\n" puts
-    "    args_ptr: resq 1\n" puts
-    "    mem: resb " puts MEM_CAPACITY putd "\n" puts
-end // macro
+    1 +
+  end
+  drop
 
+  "    mov rax, 60\n"  @out_fd fputs
+  "    mov rdi, 0\n"   @out_fd fputs
+  "    syscall\n"      @out_fd fputs
+  "segment .bss\n"     @out_fd fputs
+  "args_ptr: resq 1\n" @out_fd fputs
+  "mem: resb "         @out_fd fputs MEM_CAPACITY @out_fd fputd "\n" @out_fd fputs
 
-macro usage
-    "Usage: mclang [SUBCOMMAND] [FLAGS] [FILE]\n" puts
-    "SUBCOMMANDS:\n" puts
-    "    c, com, compile                     => Compile the program.\n" puts
-    "    s, sim, simulate                    => Simulate/interpret the program.\n" puts
-    // "FLAGS:\n" puts
-    // "    -h, --help                          => Show this help text.\n" puts
-    // "    --unsafe                            => Skip type checking the source code\n" puts
-    // "    -r, --run                           => Run the program after compiling. Only relavent in compile mode.\n" puts
-    // "    -nrm, --no-remove                   => Remove the out.asm and out.o files. Only relavent in compile mode.\n" puts
-    // "    -o [FILENAME]                       => The name of the compile program.\n" puts
-    // "    -dm, --dump-memory [DUMP_MEM_SIZE]  => Dump memory from address 0 to [DUMP_MEM_SIZE]. Only relavent in simulate mode.\n" puts
+  @out_fd close drop
+
+  nasm_argv cmd_echoed
+  ld_argv cmd_echoed
+  output_argv cmd_echoed
+end  
+
+macro simulate-ops // --
+  0 while dup ops-count @64 < do
+    dup sizeof(Op) * ops +
+
+    if COUNT_OPS 7 != do
+      here eputs ": Assertion Failed: Exhaustive handling of Op types in simulate-ops\n" eputs
+      1 exit
+    end
+
+    if dup @Op.type OP_PUSH_INT = do
+       dup @Op.operand sim-stack-push
+    elif dup @Op.type OP_PLUS = do
+       sim-stack-pop
+       sim-stack-pop
+       +
+       sim-stack-push
+    elif dup @Op.type OP_MINUS = do
+       sim-stack-pop
+       sim-stack-pop
+       swap
+       -
+       sim-stack-push
+    elif dup @Op.type OP_MUL = do
+       sim-stack-pop
+       sim-stack-pop
+       *
+       sim-stack-push
+    elif dup @Op.type OP_PRINT = do
+       sim-stack-pop print
+    elif dup @Op.type OP_DUP = do
+       sim-stack-pop
+       dup
+       sim-stack-push
+       sim-stack-push
+    elif dup @Op.type OP_DROP = do
+       sim-stack-pop
+       drop
+    else
+       here eputs ": unreachable\n" eputs 1 exit
+    end
+
+    drop
+
+    1 +
+  end
+  drop
 end
 
+macro parse_file_path_cstr_into_ops
+  0                            // mode
+  O_RDONLY                     // flags
+  file_path_cstr @64 cast(ptr) // pathname
+  AT_FDCWD                     // dirfd
+  openat
 
-macro parse_file_path
-    O_RDONLY   // flags
-    file_path_cstr @64 cast(ptr) // pathname
-    AT_FDCWD   // dirfd
-    openat
+  if dup 0 < do
+    "ERROR: could not open file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
+    1 exit
+  end
 
-    if dup 0 < do
-        "ERROR: could not open file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
-        1 exit
+  fd !64
+
+  if statbuf fd @64 fstat 0 < do
+    "ERROR: could not determine the size of file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
+    1 exit
+  end
+
+  statbuf @stat.st_size content !Str.count
+
+  0                        // offset
+  fd @64                   // fd
+  MAP_PRIVATE              // flags
+  PROT_READ                // prot
+  content @Str.count       // length
+  NULL                     // addr
+  mmap
+  content !Str.data
+
+  if content @Str.data cast(int) 0 < do
+    "ERROR: could not memory map file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
+    1 exit
+  end
+
+  1 line_number !64
+  while content @Str.count 0 > do
+    '\n' line content str-chop-by-delim
+    line @Str.data line_start !64
+    while line @Str.count 0 > do
+       line str-trim-left
+       ' ' word line str-chop-by-delim
+
+       if COUNT_OPS 7 != do
+         here eputs ": Assertion Failed: Exhaustive handling of Op types in parse-file-path\n" eputs
+         1 exit
+       end
+
+       if word @Str "+" streq do
+         OP_PLUS 0 push-op
+       elif word @Str "-" streq do
+         OP_MINUS 0 push-op
+       elif word @Str "*" streq do
+         OP_MUL 0 push-op
+       elif word @Str "print" streq do
+         OP_PRINT 0 push-op
+       elif word @Str "dup" streq do
+         OP_DUP 0 push-op
+       elif word @Str "drop" streq do
+         OP_DROP 0 push-op
+       else
+         OP_PUSH_INT try_to_parse_word_as_int_or_fail_as_unknown_word push-op
+       end
     end
-
-    fd !64
-
-    if statbuf fd @64 fstat 0 < do
-        "ERROR: could not determine the size of file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
-        1 exit
-    end
-
-    statbuf @stat.st_size content !Str.count
-
-    0                        // offset
-    fd @64                   // fd
-    MAP_PRIVATE              // flags
-    PROT_READ                // prot
-    content @Str.count       // length
-    NULL                     // addr
-    mmap
-    content !Str.data
-
-    if content @Str.data cast(int) 0 < do
-        "ERROR: could not memory map file " eputs file_path_cstr @64 cast(ptr) cstr-to-str eputs "\n" eputs
-        1 exit
-    end
-
-    1 line_number !64
-    while content @Str.count 0 > do
-        line content String.chop_line
-        line @Str.data line_start !64
-        while line @Str.count 0 > do
-            line String.trim_left
-            word line String.chop_word
-
-            "Exhaustive handling of Op types in parse-file-path\n" here COUNT_OPS 34 = assert
-
-            if word @Str "+" streq do
-                OP_PLUS 0 push_op
-            elif word @Str "-" streq do
-                OP_MINUS 0 push_op
-            elif word @Str "*" streq do
-                OP_MUL 0 push_op
-            elif word @Str "divmod" streq do
-                OP_DIVMOD 0 push_op
-            elif word @Str "print" streq do
-                OP_PRINT 0 push_op
-            elif word @Str "=" streq do
-                OP_EQ 0 push_op
-            elif word @Str ">" streq do
-                OP_GT 0 push_op
-            elif word @Str "<" streq do
-                OP_LT 0 push_op
-            elif word @Str ">=" streq do
-                OP_GE 0 push_op
-            elif word @Str "<=" streq do
-                OP_LE 0 push_op
-            elif word @Str "!=" streq do
-                OP_NE 0 push_op
-            elif word @Str "not" streq do
-                OP_NOT 0 push_op
-            elif word @Str "shr" streq do
-                OP_SHR 0 push_op
-            elif word @Str "shl" streq do
-                OP_SHL 0 push_op
-            elif word @Str "or" streq do
-                OP_OR 0 push_op
-            elif word @Str "and" streq do
-                OP_AND 0 push_op
-            elif word @Str "dup" streq do
-                OP_DUP 0 push_op
-            elif word @Str "swap" streq do
-                OP_SWAP 0 push_op
-            elif word @Str "drop" streq do
-                OP_DROP 0 push_op
-            elif word @Str "over" streq do
-                OP_OVER 0 push_op
-            // elif word @Str "!8" streq do
-            //     OP_STORE8 0 push_op
-            // elif word @Str "@8" streq do
-            //     OP_LOAD8 0 push_op
-            // elif word @Str "!16" streq do
-            //     OP_STORE16 0 push_op
-            // elif word @Str "@16" streq do
-            //     OP_LOAD16 0 push_op
-            // elif word @Str "!32" streq do
-            //     OP_STORE32 0 push_op
-            // elif word @Str "@32" streq do
-            //     OP_LOAD32 0 push_op
-            // elif word @Str "!64" streq do
-            //     OP_STORE64 0 push_op
-            // elif word @Str "@64" streq do
-            //     OP_LOAD64 0 push_op
-            // elif word @Str "cast(ptr)" streq do
-            //     OP_CAST_PTR 0 push_op
-            // elif word @Str "cast(int)" streq do
-            //     OP_CAST_INT 0 push_op
-            // elif word @Str "cast(bool)" streq do
-            //     OP_CAST_BOOL 0 push_op
-            // elif word @Str "syscall0" streq do
-            //     OP_SYSCALL0 0 push_op
-            // elif word @Str "syscall1" streq do
-            //     OP_SYSCALL1 0 push_op
-            // elif word @Str "syscall2" streq do
-            //     OP_SYSCALL2 0 push_op
-            // elif word @Str "syscall3" streq do
-            //     OP_SYSCALL3 0 push_op
-            // elif word @Str "syscall4" streq do
-            //     OP_SYSCALL4 0 push_op
-            // elif word @Str "syscall5" streq do
-            //     OP_SYSCALL5 0 push_op
-            // elif word @Str "syscall6" streq do
-            //     OP_SYSCALL6 0 push_op
-            // elif word @Str "argc" streq do
-            //     OP_ARGC 0 push_op
-            // elif word @Str "argv" streq do
-            //     OP_ARGV 0 push_op
-            // elif word @Str "here" streq do
-            //     OP_HERE 0 push_op
-            elif word @Str "rot" streq do
-                OP_ROT 0 push_op
-            else
-                OP_PUSH_INT parse_word_as_int push_op
-            end
-        end
-        line_number inc64
-    end
-    // TODO: parse_file_path does not clean up resources after itself
+    line_number inc64
+  end
+  // TODO: parse_file_path does not clean up resources after itself
 end
 
+macro usage // --
+  dup "Usage: porth <SUBCOMMAND>\n" rot fputs
+  dup "  SUBCOMMANDS:\n" rot fputs
+  dup "    sim <file>       Simulate the program.\n" rot fputs
+  // TODO: -r flag for com subcommand
+  dup "    com <file>       Compile the program\n" rot fputs
+  dup "    dump <file>      Dump the ops of the program\n" rot fputs
+  dup "    help             Print this help to STD_OUT and exit with 0 code\n" rot fputs
+  drop
+end
 
-macro main
-    if argc 2 < do
-        usage
-        "[ERR]: No subcommand provided." eputs
-        1 exit
+macro main // --
+  if argc 2 < do
+    STD_ERR usage
+    "ERROR: subcommand is not provided\n" eputs
+    1 exit
+  end
+
+  1 nth_argv
+  if dup "sim"c cstreq do
+    if argc 3 < do
+      STD_ERR usage
+      "ERROR: no input file is provided for the `sim` subcommand\n" eputs
+      1 exit
     end
 
     2 nth_argv file_path_cstr !64
 
-    
-    1 nth_argv 
-    if dup "com"c cstreq do
-        if argc 3 < do
-            usage
-            "[ERR]: No file provided.\n" eputs
-            1 exit
-        end 
+    parse_file_path_cstr_into_ops
 
-        parse_file_path
-        compile_ops
-    elif dup "sim"c cstreq do
-        if argc 3 < do
-            usage
-            "[ERR]: No file provided.\n" eputs
-            1 exit
-        end 
-
-        parse_file_path
-        simulate_ops
-    elif dup "dump"c cstreq do
-        if argc 3 < do
-            usage
-            "[ERR]: No file provided.\n" eputs
-            1 exit
-        end 
-
-        parse_file_path
-        dump_ops
-    elif dup "help"c cstreq do
-        usage
-        0 exit
-    else
-        usage
-        "[ERR]: Unknown subcommand `" eputs dup cstr-to-str eputs "`\n" eputs
-        1 exit
+    simulate-ops
+  elif dup "com"c cstreq do
+    if argc 3 < do
+      STD_ERR usage
+      "ERROR: no input file is provided for the `com` subcommand\n" eputs
+      1 exit
     end
-    drop
+
+    2 nth_argv file_path_cstr !64
+
+    parse_file_path_cstr_into_ops
+
+    compile-ops
+  elif dup "help"c cstreq do
+    STD_OUT usage
+    0 exit
+  elif dup "dump"c cstreq do
+    if argc 3 < do
+      STD_ERR usage
+      "ERROR: no input file is provided for the `dump` subcommand\n" eputs
+      1 exit
+    end
+
+    2 nth_argv file_path_cstr !64
+
+    parse_file_path_cstr_into_ops
+
+    dump-ops
+  else
+    STD_ERR usage
+    "ERROR: unknown subcommand `" eputs dup cstr-to-pstr eputs "`\n" eputs
+    1 exit
+  end
+  drop
 end
+
 main

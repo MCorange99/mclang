@@ -12,7 +12,7 @@ from time import sleep
 import time
 import re
 home_dir=os.getenv("HOME")
-builtin_lib_path = [home_dir + "/.mclang/include", "./include"]
+builtin_lib_path = ["./include", home_dir + "/.mclang/include"]
 
 SIM_STR_CAPACITY = 640_000
 SIM_ARGV_CAPACITY = 640_000
@@ -1262,7 +1262,7 @@ def generate_nasm_linux_x86_64(program: Program, file_path: str):
             elif op.typ == OpType.PUSH_MEM:
                 out.write("    ;; -- push mem --\n")
                 out.write("    mov rax, mem\n")
-                out.write("    add rax, %d\n" % op.operand.offset)
+                out.write("    add rax, %d\n" % op.operand)
                 out.write("    push rax\n")
             elif op.typ == OpType.IF:
                 out.write("    ;; -- if --\n")
@@ -1642,13 +1642,12 @@ def expand_macro(macro: Macro, expanded_from: Token) -> List[Token]:
     return result
 
 
-def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int, base_path) -> Program:
+def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], expansion_limit: int, cwd) -> Program:
     stack: List[OpAddr] = []
-    program: List[Op] = Program(ops=[], memory_capacity=0)
+    program: Program = Program(ops=[], memory_capacity=0)
     rtokens: List[Token] = list(reversed(tokens))
-    memories = {}
-    mem_cap = 0
     macros: Dict[str, Macro] = {}
+    memories: Dict[str, Memory] = {}
     ip: OpAddr = 0;
     while len(rtokens) > 0:
         token = rtokens.pop()
@@ -1660,14 +1659,16 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 ip += 1
             elif token.value in macros:
                 if token.expanded_count >= expansion_limit:
-                    compiler_error(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                    compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                     exit(1)
                 rtokens += reversed(expand_macro(macros[token.value], token))
             elif token.value in memories:
-                program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value]))
+                program.ops.append(Op(typ=OpType.PUSH_MEM, token=token, operand=memories[token.value].offset))
                 ip += 1
             else:
-                compiler_error(token, "unknown word `%s`" % token.value)
+                print(token.value)
+                # print(macros)
+                compiler_error_with_expansion_stack(token, "unknown word `%s`" % token.value)
                 exit(1)
         elif token.typ == TokenType.INT:
             assert isinstance(token.value, int), "This could be a bug in the lexer"
@@ -1695,7 +1696,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 program.ops.append(Op(typ=OpType.ELIF, token=token))
                 do_ip = stack.pop()
                 if program.ops[do_ip].typ != OpType.DO:
-                    compiler_error(program.loc[do_ip].token, '`elif` can only close `do`-blocks')
+                    compiler_error_with_expansion_stack(program.ops[do_ip].token, '`elif` can only close `do`-blocks')
                     exit(1)
                 pre_do_ip = program.ops[do_ip].operand
                 assert isinstance(pre_do_ip, OpAddr)
@@ -1709,13 +1710,13 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     stack.append(ip)
                     ip += 1
                 else:
-                    compiler_error(program.ops[do_ip].token, '`elif` can only close `do`-blocks that are preceded by `if` or another `elif`')
+                    compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`elif` can only close `do`-blocks that are preceded by `if` or another `elif`')
                     exit(1)
             elif token.value == Keyword.ELSE:
                 program.ops.append(Op(typ=OpType.ELSE, token=token))
                 do_ip = stack.pop()
                 if program.ops[do_ip].typ != OpType.DO:
-                    compiler_error(program.ops[do_ip].token, '`else` can only be used in `do` blocks')
+                    compiler_error_with_expansion_stack(program.ops[do_ip].token, '`else` can only be used in `do` blocks')
                     exit(1)
                 pre_do_ip = program.ops[do_ip].operand
                 assert isinstance(pre_do_ip, OpAddr)
@@ -1729,7 +1730,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     stack.append(ip)
                     ip += 1
                 else:
-                    compiler_error(program.loc[pre_do_ip].token, '`else` can only close `do`-blocks that are preceded by `if` or `elif`')
+                    compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`else` can only close `do`-blocks that are preceded by `if` or `elif`')
                     exit(1)
             elif token.value == Keyword.END:
                 program.ops.append(Op(typ=OpType.END, token=token))
@@ -1753,10 +1754,10 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         program.ops[ip].operand = ip + 1
                         program.ops[block_ip].operand = ip + 1
                     else:
-                        compiler_error(program.ops[pre_do_ip].token, '`end` can only close `do` blocks that are preceded by `if`, `while` or `elif`')
+                        compiler_error_with_expansion_stack(program.ops[pre_do_ip].token, '`end` can only close `do` blocks that are preceded by `if`, `while` or `elif`')
                         exit(1)
                 else:
-                    compiler_error(program.ops[block_ip].token, '`end` can only close `else`, `do` or `macro` blocks for now')
+                    compiler_error_with_expansion_stack(program.ops[block_ip].token, '`end` can only close `else`, `do` or `macro` blocks for now')
                     exit(1)
                 ip += 1
             elif token.value == Keyword.WHILE:
@@ -1765,34 +1766,42 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                 ip += 1
             elif token.value == Keyword.DO:
                 program.ops.append(Op(typ=OpType.DO, token=token))
+                if len(stack) == 0:
+                    compiler_error_with_expansion_stack(token, "`do` is not preceded by `if`, `while` or `elif`")
+                    exit(1)
                 pre_do_ip = stack.pop()
-                assert program.ops[pre_do_ip].typ == OpType.WHILE or program.ops[pre_do_ip].typ == OpType.IF or program.ops[pre_do_ip].typ == OpType.ELIF
+                if program.ops[pre_do_ip].typ != OpType.WHILE and program.ops[pre_do_ip].typ != OpType.IF and program.ops[pre_do_ip].typ != OpType.ELIF:
+                    compiler_error_with_expansion_stack(token, "`do` is not preceded by `if`, `while` or `elif`")
+                    exit(1)
                 program.ops[ip].operand = pre_do_ip
                 stack.append(ip)
                 ip += 1
             elif token.value == Keyword.INCLUDE:
                 if len(rtokens) == 0:
-                    compiler_error(token, "expected path to the include file but found nothing")
+                    compiler_error_with_expansion_stack(token, "expected path to the include file but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.STR:
-                    compiler_error(token, "expected path to the include file to be `%s` but found `%s`" % (human(TokenType.STR), human(token.typ)))
+                    compiler_error_with_expansion_stack(token, "expected path to the include file to be %s but found %s" % (human(TokenType.STR), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
-                
                 file_included = False
 
-                if os.path.exists(token.value):
-                    if token.expanded_count >= expansion_limit:
-                        compiler_error(token, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
-                        exit(1)
-                    rtokens += reversed(lex_file(token.value, token))
-                    file_included = True
-                else: 
+                if "/" in token.value or "\\" in token.value:
+                    try:
+                        if token.expanded_count >= expansion_limit:
+                            compiler_error_with_expansion_stack(token, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                            exit(1)
+                        rtokens += reversed(lex_file(os.path.join(cwd, token.value), token))
+                        file_included = True
+                        break
+                    except FileNotFoundError:
+                        continue
+                else:
                     for include_path in include_paths:
                         try:
                             if token.expanded_count >= expansion_limit:
-                                compiler_error(token.loc, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                                compiler_error_with_expansion_stack(token, "the include exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                                 exit(1)
                             rtokens += reversed(lex_file(os.path.join(include_path, token.value), token))
                             file_included = True
@@ -1800,15 +1809,15 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         except FileNotFoundError:
                             continue
                 if not file_included:
-                    compiler_error(token, "file `%s` not found" % token.value)
+                    compiler_error_with_expansion_stack(token, "file `%s` not found" % token.value)
                     exit(1)
             elif token.value == Keyword.MEMORY:
                 if len(rtokens) == 0:
-                    compiler_error(token, "expected memory name but found nothing")
+                    compiler_error_with_expansion_stack(token, "expected memory name but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.WORD:
-                    compiler_error(token, "expected memory name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
+                    compiler_error_with_expansion_stack(token, "expected memory name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
                 memory_name = token.value
@@ -1822,7 +1831,7 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         if token.value == Keyword.END:
                             break
                         else:
-                            compiler_error(token, f"unsupported keyword `{KEYWORD_NAMES[token.value]}` in memory definition")
+                            compiler_error_with_expansion_stack(token, f"unsupported keyword `{KEYWORD_NAMES[token.value]}` in memory definition")
                             exit(1)
                     elif token.typ == TokenType.INT:
                         assert isinstance(token.value, int)
@@ -1831,54 +1840,45 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                         assert isinstance(token.value, str)
                         if token.value == INTRINSIC_NAMES[Intrinsic.PLUS]:
                             if len(mem_size_stack) < 2:
-                                compiler_error(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
                                 exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a + b)
                         elif token.value == INTRINSIC_NAMES[Intrinsic.MUL]:
                             if len(mem_size_stack) < 2:
-                                compiler_error(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
+                                compiler_error_with_expansion_stack(token, f"not enough arguments for `{INTRINSIC_NAMES[Intrinsic.PLUS]}` intrinsic in memory definition")
                                 exit(1)
                             a = mem_size_stack.pop()
                             b = mem_size_stack.pop()
                             mem_size_stack.append(a * b)
                         elif token.value in macros:
                             if token.expanded_count >= expansion_limit:
-                                compiler_error(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
+                                compiler_error_with_expansion_stack(token, "the macro exceeded the expansion limit (it expanded %d times)" % token.expanded_count)
                                 exit(1)
                             rtokens += reversed(expand_macro(macros[token.value], token))
                         else:
-                            compiler_error(token, f"unsupported word in memory definition {token.value}")
+                            compiler_error_with_expansion_stack(token, f"unsupported word in memory definition {token.value}")
                             exit(1)
                     else:
-                        compiler_error(token, f"{human(token.typ)} are not supported in memory definition")
+                        compiler_error_with_expansion_stack(token, f"{human(token.typ, HumanNumber.Plural)} are not supported in memory definition")
                         exit(1)
                 if len(mem_size_stack) != 1:
-                    compiler_error(token, "The result of expression in the memory definition must be a single number")
+                    compiler_error_with_expansion_stack(token, "The result of expression in the memory definition must be a single number")
                     exit(1)
                 memory_size = mem_size_stack.pop()
                 memories[memory_name] = Memory(offset=program.memory_capacity, loc=memory_loc)
                 program.memory_capacity += memory_size
             elif token.value == Keyword.MACRO:
                 if len(rtokens) == 0:
-                    compiler_error(token, "expected macro name but found nothing")
+                    compiler_error_with_expansion_stack(token, "expected macro name but found nothing")
                     exit(1)
                 token = rtokens.pop()
                 if token.typ != TokenType.WORD:
-                    compiler_error(token, "expected macro name to be `%s` but found `%s`" % (human(TokenType.WORD), human(token.typ)))
+                    compiler_error_with_expansion_stack(token, "expected macro name to be %s but found %s" % (human(TokenType.WORD), human(token.typ)))
                     exit(1)
                 assert isinstance(token.value, str), "This is probably a bug in the lexer"
-                if token.value in macros:
-                    compiler_error(token, "redefinition of already existing macro `%s`" % token.value)
-                    compiler_note(macros[token.value].loc, "the first definition is located here")
-                    exit(1)
-                if token.value in INTRINSIC_BY_NAMES:
-                    compiler_error(token, "redefinition of an intrinsic word `%s`. Please choose a different name for your macro." % (token.value, ))
-                    exit(1)
-                if token.value in memories:
-                    compiler_error(token, "redefinition of a memory region `%s`. Please choose a different name for your macro." % (token.value, ))
-                    exit(1)
+                check_word_redefinition(token, memories, macros)
                 macro = Macro(token.loc, [])
                 macros[token.value] = macro
                 nesting_depth = 0
@@ -1889,22 +1889,23 @@ def parse_program_from_tokens(tokens: List[Token], include_paths: List[str], exp
                     else:
                         macro.tokens.append(token)
                         if token.typ == TokenType.KEYWORD:
-                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO]:
+                            assert len(Keyword) == 9, "Exhaustive handling of keywords in parsing macro body"
+                            if token.value in [Keyword.IF, Keyword.WHILE, Keyword.MACRO, Keyword.MEMORY]:
                                 nesting_depth += 1
                             elif token.value == Keyword.END:
                                 nesting_depth -= 1
                 if token.typ != TokenType.KEYWORD or token.value != Keyword.END:
-                    compiler_error(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value, ))
+                    compiler_error_with_expansion_stack(token, "expected `end` at the end of the macro definition but got `%s`" % (token.value, ))
                     exit(1)
             else:
                 assert False, 'unreachable';
         else:
             assert False, 'unreachable'
 
-
     if len(stack) > 0:
-        compiler_error(program.ops[stack.pop()].token, 'unclosed block')
+        compiler_error_with_expansion_stack(program.ops[stack.pop()].token, 'unclosed block')
         exit(1)
+
     return program
 
 
