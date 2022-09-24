@@ -6,6 +6,8 @@ include "colors.mcl"
 macro NULL 0 end
 macro sizeof(u64) 8 end
 macro sizeof(u32) 4 end
+macro sizeof(u16) 2 end
+macro sizeof(u8)  1 end
 macro sizeof(ptr) sizeof(u64) end
 
 // util

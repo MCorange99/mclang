@@ -432,7 +432,7 @@ macro main // --
     1 exit
   end
 
-  1 nth_argv
+  1 nth-argv
   if dup "sim"c cstreq do
     if argc 3 < do
       STD_ERR usage
@@ -440,7 +440,7 @@ macro main // --
       1 exit
     end
 
-    2 nth_argv file_path_cstr !64
+    2 nth-argv file_path_cstr !64
 
     parse_file_path_cstr_into_ops
 
@@ -452,7 +452,7 @@ macro main // --
       1 exit
     end
 
-    2 nth_argv file_path_cstr !64
+    2 nth-argv file_path_cstr !64
 
     parse_file_path_cstr_into_ops
 
@@ -467,7 +467,7 @@ macro main // --
       1 exit
     end
 
-    2 nth_argv file_path_cstr !64
+    2 nth-argv file_path_cstr !64
 
     parse_file_path_cstr_into_ops
 
