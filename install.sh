@@ -17,9 +17,9 @@ mkdir -p "$HOME/.mclang"
 echo "[cmd]: cd $HOME/.mclang"
 pushd "$HOME/.mclang" 1> /dev/null 2> /dev/null
 
-echo "Do you want to clone with ssh or https? You will need to be registered on github and also you need to have a working shh key to use ssh 
-(ssh/https)?: "
-read s_git_type
+# echo "Do you want to clone with ssh or https? You will need to be registered on github and also you need to have a working shh key to use ssh 
+# (ssh/https)?: "
+# read s_git_type
 
 #if [ "$s_git_type" = "ssh" ] 
 #then
